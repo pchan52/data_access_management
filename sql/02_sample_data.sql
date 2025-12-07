@@ -190,6 +190,93 @@ WHERE (u.qs_username = 'tanaka.taro' AND g.group_name = '営業部')
 ON CONFLICT DO NOTHING;
 
 -- ============================================
+-- 9. Databricks テーブル
+-- ============================================
+INSERT INTO dbx_tables (catalog_name, schema_name, table_name, description) VALUES
+('main', 'sales', 'monthly_sales', '月次の売上データを集計したテーブル'),
+('main', 'product', 'product_master', '商品情報のマスタテーブル'),
+('main', 'customer', 'customer_info', '顧客の基本情報と属性データ'),
+('main', 'inventory', 'inventory_data', 'リアルタイム在庫情報'),
+('main', 'finance', 'financial_data', '四半期財務データ'),
+('main', 'marketing', 'campaign_data', 'マーケティングキャンペーンの実績データ'),
+('main', 'transaction', 'transaction_history', '顧客の取引履歴データ'),
+('main', 'sales', 'regional_sales', '地域ごとの売上集計データ'),
+('main', 'member', 'member_info', '会員の基本情報とステータス'),
+('main', 'advertising', 'ad_effectiveness', '広告配信の効果測定データ'),
+('main', 'hr', 'employee_master', '全社員の基本情報と組織情報'),
+('main', 'hr', 'organization_master', '組織構造と部署情報'),
+('main', 'sales', 'company_sales_summary', '全社の売上を集計したサマリーテーブル'),
+('analytics', 'ml', 'customer_segments', '機械学習で生成された顧客セグメントデータ'),
+('analytics', 'ml', 'sales_forecast', '売上予測モデルの結果データ'),
+('warehouse', 'raw', 'web_logs', 'Webサイトのアクセスログデータ'),
+('warehouse', 'raw', 'api_logs', 'API呼び出しのログデータ')
+ON CONFLICT (catalog_name, schema_name, table_name) DO NOTHING;
+
+-- ============================================
+-- 10. DBXグループ
+-- ============================================
+INSERT INTO dbx_groups (group_name, group_owner, dbp_manager) VALUES
+('営業部（DBX）', 'tanaka@example.com', 'yamada@example.com'),
+('在庫管理部（DBX）', 'suzuki@example.com', 'watanabe@example.com'),
+('顧客分析部（DBX）', 'sato@example.com', 'ito@example.com'),
+('財務部（DBX）', 'kobayashi@example.com', 'kato@example.com'),
+('マーケティング部（DBX）', 'yoshida@example.com', 'kondo@example.com')
+ON CONFLICT (group_name) DO NOTHING;
+
+-- ============================================
+-- 11. アプリケーション ↔ Databricksテーブル関連
+-- ============================================
+INSERT INTO application_dbx_tables (application_id, table_id) 
+SELECT a.id, t.id
+FROM applications a, dbx_tables t
+WHERE (a.application_id = 'APP001' AND t.table_name IN ('monthly_sales', 'regional_sales', 'company_sales_summary'))
+   OR (a.application_id = 'APP002' AND t.table_name IN ('product_master', 'inventory_data'))
+   OR (a.application_id = 'APP003' AND t.table_name IN ('customer_info', 'transaction_history', 'member_info'))
+   OR (a.application_id = 'APP004' AND t.table_name IN ('financial_data', 'company_sales_summary'))
+   OR (a.application_id = 'APP005' AND t.table_name IN ('customer_info', 'campaign_data', 'ad_effectiveness'))
+   OR (a.application_id = 'APP006' AND t.table_name = 'member_info')
+   OR (a.application_id = 'APP007' AND t.table_name = 'ad_effectiveness')
+   -- 1つのテーブルに複数のアプリケーションが紐づく例
+   OR (a.application_id = 'APP001' AND t.table_name = 'customer_info')  -- APP001とAPP003がcustomer_infoを使用
+   OR (a.application_id = 'APP003' AND t.table_name = 'customer_segments')  -- APP003とAPP005がcustomer_segmentsを使用
+   OR (a.application_id = 'APP005' AND t.table_name = 'customer_segments')
+ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- 12. DBXグループ ↔ Databricksテーブル関連
+-- ============================================
+INSERT INTO dbx_group_tables (group_id, table_id)
+SELECT g.id, t.id
+FROM dbx_groups g
+CROSS JOIN dbx_tables t
+WHERE (g.group_name = '営業部（DBX）' AND t.table_name IN ('monthly_sales', 'regional_sales', 'employee_master', 'organization_master', 'company_sales_summary'))
+   OR (g.group_name = '在庫管理部（DBX）' AND t.table_name IN ('product_master', 'inventory_data', 'employee_master', 'organization_master'))
+   OR (g.group_name = '顧客分析部（DBX）' AND t.table_name IN ('customer_info', 'transaction_history', 'member_info', 'employee_master', 'organization_master', 'customer_segments'))
+   OR (g.group_name = '財務部（DBX）' AND t.table_name IN ('financial_data', 'employee_master', 'organization_master', 'company_sales_summary'))
+   OR (g.group_name = 'マーケティング部（DBX）' AND t.table_name IN ('customer_info', 'campaign_data', 'ad_effectiveness', 'employee_master', 'organization_master', 'customer_segments'))
+ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- 13. ユーザー ↔ DBXグループ関連（既存のユーザーを使用）
+-- ============================================
+INSERT INTO user_dbx_groups (user_id, group_id)
+SELECT u.id, g.id
+FROM users u
+CROSS JOIN dbx_groups g
+WHERE (u.qs_username = 'tanaka.taro' AND g.group_name = '営業部（DBX）')
+   OR (u.qs_username = 'yamada.hanako' AND g.group_name = '営業部（DBX）')
+   OR (u.qs_username = 'sato.jiro' AND g.group_name = '営業部（DBX）')
+   OR (u.qs_username = 'suzuki.saburo' AND g.group_name = '在庫管理部（DBX）')
+   OR (u.qs_username = 'watanabe.shiro' AND g.group_name = '在庫管理部（DBX）')
+   OR (u.qs_username = 'sato.goro' AND g.group_name = '顧客分析部（DBX）')
+   OR (u.qs_username = 'ito.rokuro' AND g.group_name = '顧客分析部（DBX）')
+   OR (u.qs_username = 'kobayashi.shichiro' AND g.group_name = '財務部（DBX）')
+   OR (u.qs_username = 'kato.hachiro' AND g.group_name = '財務部（DBX）')
+   OR (u.qs_username = 'yoshida.kuro' AND g.group_name = 'マーケティング部（DBX）')
+   OR (u.qs_username = 'kondo.juro' AND g.group_name = 'マーケティング部（DBX）')
+ON CONFLICT DO NOTHING;
+
+-- ============================================
 -- 完了メッセージ
 -- ============================================
 DO $$

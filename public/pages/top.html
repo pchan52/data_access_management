@@ -19,8 +19,7 @@
     <h2>このツールについて</h2>
     <p>
       データアクセスの申請・管理を行うためのポータルです。<br>
-      現在は<strong>Quicksight</strong>のデータセット・グループを対象としており、データセットアクセス申請、新規グループ作成申請、メンバー追加申請を一元管理し、承認プロセスを効率化します。<br>
-      <span style="color: var(--text-secondary); font-size: 0.9rem;">※将来的にDatabricks等の他のデータプラットフォームにも対応予定です。</span>
+      Quicksightのデータセット・グループ、Databricksのテーブル・グループを対象としており、データアクセスの追加・削除申請、グループの作成・削除申請、メンバーの追加・削除申請を一元管理し、承認プロセスを効率化します。<br>
     </p>
     <p style="margin-top: 1rem;">
       <a href="/pages/usage.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">
@@ -40,16 +39,25 @@
     <h2>ページ一覧</h2>
     
     <div class="page-section">
-      <h3>申請ページ</h3>
+      <h3>申請ページ（Quicksight）</h3>
       <ul class="page-list">
-        <li><a href="/pages/request.html">データセットアクセス申請<br><span class="text-muted">Quicksightデータセットへのアクセス申請</span></a></li>
-        <li><a href="/pages/member_request.html">メンバー管理申請<br><span class="text-muted">Quicksightグループへのメンバー追加・削除申請</span></a></li>
-        <li><a href="/pages/group_request.html">グループ管理申請<br><span class="text-muted">Quicksightグループの作成・削除申請</span></a></li>
+        <li><a href="/pages/request.html">QSデータセットアクセス申請<br><span class="text-muted">QSデータセットへのアクセス申請</span></a></li>
+        <li><a href="/pages/member_request.html">QSメンバー管理申請<br><span class="text-muted">QSグループへのメンバー追加・削除申請</span></a></li>
+        <li><a href="/pages/group_request.html">QSグループ管理申請<br><span class="text-muted">QSグループの作成・削除申請</span></a></li>
       </ul>
     </div>
 
     <div class="page-section">
-      <h3>申請一覧</h3>
+      <h3>申請ページ（Databricks）</h3>
+      <ul class="page-list">
+        <li><a href="/pages/dbx_table_request.html">DBXテーブルアクセス申請<br><span class="text-muted">DBXテーブルへのアクセス申請</span></a></li>
+        <li><a href="/pages/dbx_member_request.html">DBXメンバー管理申請<br><span class="text-muted">DBXグループへのメンバー追加・削除申請</span></a></li>
+        <li><a href="/pages/dbx_group_request.html">DBXグループ管理申請<br><span class="text-muted">DBXグループの作成・削除申請</span></a></li>
+      </ul>
+    </div>
+
+    <div class="page-section">
+      <h3>申請書</h3>
       <ul class="page-list">
         <li><a href="/pages/drafts.html">ドラフト一覧<br><span class="text-muted">保存したドラフトの閲覧・編集</span></a></li>
         <li><a href="/pages/requests.html">申請一覧<br><span class="text-muted">登録された申請の一覧と詳細確認</span></a></li>
@@ -58,12 +66,15 @@
     </div>
 
     <div class="page-section">
-      <h3>一覧ページ</h3>
+      <h3>資材一覧</h3>
       <ul class="page-list">
-        <li><a href="/pages/datasets.html">データセット一覧<br><span class="text-muted">Quicksightデータセットのメタデータ閲覧</span></a></li>
-        <li><a href="/pages/groups.html">QSグループ一覧<br><span class="text-muted">Quicksightグループのオーナー、メンバー、対応DBP、申請履歴</span></a></li>
-        <li><a href="/pages/users.html">メンバー一覧<br><span class="text-muted">ユーザー情報と所属グループ</span></a></li>
-        <li><a href="/pages/applications.html">アプリケーション一覧<br><span class="text-muted">アプリケーション・ビジネスオーナー</span></a></li>
+        <li><a href="/pages/datasets.html">QSデータセット一覧<br><span class="text-muted">QSデータセットに関する情報</span></a></li>
+        <li><a href="/pages/groups.html">QSグループ一覧<br><span class="text-muted">QSグループに関する情報</span></a></li>
+        <li><a href="/pages/users.html">QSメンバー一覧<br><span class="text-muted">ユーザー情報と所属グループに関する情報</span></a></li>
+        <li><a href="/pages/dbx_tables.html">DBXテーブル一覧<br><span class="text-muted">DBXテーブルに関する情報</span></a></li>
+        <li><a href="/pages/dbx_groups.html">DBXグループ一覧<br><span class="text-muted">DBXグループに関する情報</span></a></li>
+        <li><a href="/pages/dbx_users.html">DBXメンバー一覧<br><span class="text-muted">ユーザー情報と所属グループに関する情報</span></a></li>
+        <li><a href="/pages/applications.html">アプリケーション一覧<br><span class="text-muted">アプリケーション・ビジネスオーナーに関する情報</span></a></li>
       </ul>
     </div>
   </section>

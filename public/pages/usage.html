@@ -102,11 +102,11 @@
       <h2>基本的な使い方</h2>
       
       <div class="usage-subsection">
-        <h3>1. データセットアクセス申請</h3>
+        <h3>1. QSデータセットアクセス申請</h3>
         <ol>
           <li>
             <span class="step-number">1</span>
-            <strong>データセット一覧ページ</strong>で、対象データセットの情報を確認します。
+            <strong>QSデータセット一覧ページ</strong>で、対象データセットの情報を確認します。
           </li>
           <li>
             <span class="step-number">2</span>
@@ -114,7 +114,7 @@
           </li>
           <li>
             <span class="step-number">3</span>
-            <strong>データセットアクセス申請ページ</strong>で、申請者、QSグループ、対象データセットを選択します。
+            <strong>QSデータセットアクセス申請ページ</strong>で、申請者（ログインユーザーが自動選択）、QSグループ、対象データセットを選択します。
           </li>
           <li>
             <span class="step-number">4</span>
@@ -134,25 +134,25 @@
           </li>
         </ol>
 
-        <div class="info-box">
-          <strong>💡 ヒント:</strong> ドラフト保存を活用すると、申請内容を確認してから送信できます。ドラフト一覧ページで編集・送信が可能です。
+        <div class="highlight">
+          <strong>📝 データセットアクセス削除申請:</strong> 同じページで「削除」を選択すると、既にアクセス権限があるデータセットの削除申請ができます。
         </div>
       </div>
 
       <div class="usage-subsection">
-        <h3>2. 新規グループ作成申請</h3>
+        <h3>2. DBXテーブルアクセス申請</h3>
         <ol>
           <li>
             <span class="step-number">1</span>
-            <strong>新規グループ作成申請ページ</strong>にアクセスします。
+            <strong>DBXテーブル一覧ページ</strong>で、対象テーブルの情報を確認します。
           </li>
           <li>
             <span class="step-number">2</span>
-            申請者を選択します（ログインユーザーが自動選択されます）。
+            <strong>DBXグループ一覧ページ</strong>で、自分の所属グループや対応DBPを確認します。
           </li>
           <li>
             <span class="step-number">3</span>
-            新規グループ名、グループオーナー、DBPマネージャーを入力します。
+            <strong>DBXテーブルアクセス申請ページ</strong>で、申請者（ログインユーザーが自動選択）、DBXグループ、対象テーブルを選択します。
           </li>
           <li>
             <span class="step-number">4</span>
@@ -160,17 +160,63 @@
           </li>
           <li>
             <span class="step-number">5</span>
-            「申請を送信」ボタンで申請を送信します。
+            「プレビュー」ボタンでJIRA記載内容を生成し、内容を確認します。
+          </li>
+          <li>
+            <span class="step-number">6</span>
+            「ドラフト保存」ボタンで一時保存するか、「申請を送信」ボタンで申請を送信します。
+          </li>
+          <li>
+            <span class="step-number">7</span>
+            申請後は<strong>申請一覧ページ</strong>で申請状況を確認できます。
+          </li>
+        </ol>
+
+        <div class="highlight">
+          <strong>📝 テーブルアクセス削除申請:</strong> 同じページで「削除」を選択すると、既にアクセス権限があるテーブルの削除申請ができます。
+        </div>
+      </div>
+
+      <div class="usage-subsection">
+        <h3>3. QSグループ管理申請</h3>
+        <ol>
+          <li>
+            <span class="step-number">1</span>
+            <strong>QSグループ管理申請ページ</strong>にアクセスします。
+          </li>
+          <li>
+            <span class="step-number">2</span>
+            申請者を選択します（ログインユーザーが自動選択されます）。
+          </li>
+          <li>
+            <span class="step-number">3</span>
+            「作成」または「削除」を選択します。
+          </li>
+          <li>
+            <span class="step-number">4</span>
+            選択に応じて操作を行います：
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem; list-style: disc;">
+              <li><strong>作成の場合:</strong> 新規グループ名、グループオーナー、DBPマネージャーを入力します。</li>
+              <li><strong>削除の場合:</strong> 削除するグループを選択します（申請者が所属するグループのみ表示されます）。</li>
+            </ul>
+          </li>
+          <li>
+            <span class="step-number">5</span>
+            申請理由を入力します（必須）。
+          </li>
+          <li>
+            <span class="step-number">6</span>
+            「ドラフト保存」ボタンで一時保存するか、「申請を送信」ボタンで申請を送信します。
           </li>
         </ol>
       </div>
 
       <div class="usage-subsection">
-        <h3>3. メンバー追加申請</h3>
+        <h3>4. QSメンバー管理申請</h3>
         <ol>
           <li>
             <span class="step-number">1</span>
-            <strong>メンバー追加申請ページ</strong>にアクセスします。
+            <strong>QSメンバー管理申請ページ</strong>にアクセスします。
           </li>
           <li>
             <span class="step-number">2</span>
@@ -182,7 +228,49 @@
           </li>
           <li>
             <span class="step-number">4</span>
-            追加するメンバーを選択します（既存メンバーは選択できません）。
+            「追加」または「削除」を選択します。
+          </li>
+          <li>
+            <span class="step-number">5</span>
+            選択に応じて操作を行います：
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem; list-style: disc;">
+              <li><strong>追加の場合:</strong> 追加するメンバーを選択します（既存メンバーは選択できません）。</li>
+              <li><strong>削除の場合:</strong> 削除するメンバーを選択します（既存メンバーのみ表示されます）。</li>
+            </ul>
+          </li>
+          <li>
+            <span class="step-number">6</span>
+            申請理由を入力します（必須）。
+          </li>
+          <li>
+            <span class="step-number">7</span>
+            「ドラフト保存」ボタンで一時保存するか、「申請を送信」ボタンで申請を送信します。
+          </li>
+        </ol>
+      </div>
+
+      <div class="usage-subsection">
+        <h3>5. DBXグループ管理申請</h3>
+        <ol>
+          <li>
+            <span class="step-number">1</span>
+            <strong>DBXグループ管理申請ページ</strong>にアクセスします。
+          </li>
+          <li>
+            <span class="step-number">2</span>
+            申請者を選択します（ログインユーザーが自動選択されます）。
+          </li>
+          <li>
+            <span class="step-number">3</span>
+            「作成」または「削除」を選択します。
+          </li>
+          <li>
+            <span class="step-number">4</span>
+            選択に応じて操作を行います：
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem; list-style: disc;">
+              <li><strong>作成の場合:</strong> 新規グループ名、グループオーナー、DBPマネージャーを入力します。</li>
+              <li><strong>削除の場合:</strong> 削除するグループを選択します（申請者が所属するグループのみ表示されます）。</li>
+            </ul>
           </li>
           <li>
             <span class="step-number">5</span>
@@ -190,17 +278,55 @@
           </li>
           <li>
             <span class="step-number">6</span>
-            「申請を送信」ボタンで申請を送信します。
+            「ドラフト保存」ボタンで一時保存するか、「申請を送信」ボタンで申請を送信します。
           </li>
         </ol>
       </div>
 
       <div class="usage-subsection">
-        <h3>4. 申請の管理</h3>
+        <h3>6. DBXメンバー管理申請</h3>
         <ol>
           <li>
             <span class="step-number">1</span>
-            <strong>申請一覧ページ</strong>で自分の申請を確認できます。
+            <strong>DBXメンバー管理申請ページ</strong>にアクセスします。
+          </li>
+          <li>
+            <span class="step-number">2</span>
+            申請者を選択します（ログインユーザーが自動選択されます）。
+          </li>
+          <li>
+            <span class="step-number">3</span>
+            対象グループを選択します（申請者が所属するグループが自動選択されます）。
+          </li>
+          <li>
+            <span class="step-number">4</span>
+            「追加」または「削除」を選択します。
+          </li>
+          <li>
+            <span class="step-number">5</span>
+            選択に応じて操作を行います：
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem; list-style: disc;">
+              <li><strong>追加の場合:</strong> 追加するメンバーを選択します（既存メンバーは選択できません）。</li>
+              <li><strong>削除の場合:</strong> 削除するメンバーを選択します（既存メンバーのみ表示されます）。</li>
+            </ul>
+          </li>
+          <li>
+            <span class="step-number">6</span>
+            申請理由を入力します（必須）。
+          </li>
+          <li>
+            <span class="step-number">7</span>
+            「ドラフト保存」ボタンで一時保存するか、「申請を送信」ボタンで申請を送信します。
+          </li>
+        </ol>
+      </div>
+
+      <div class="usage-subsection">
+        <h3>7. 申請の管理</h3>
+        <ol>
+          <li>
+            <span class="step-number">1</span>
+            <strong>申請一覧ページ</strong>で自分の申請を確認できます。フィルターボタンで「申請中」「承認済み」「却下済み」を切り替えられます。
           </li>
           <li>
             <span class="step-number">2</span>
@@ -208,21 +334,21 @@
           </li>
           <li>
             <span class="step-number">3</span>
-            申請中の場合、「編集」ボタンで申請内容を修正できます（データセットアクセス申請のみ）。
+            申請中の場合、「編集」ボタンで申請内容を修正できます（データセットアクセス申請・テーブルアクセス申請のみ）。
           </li>
           <li>
             <span class="step-number">4</span>
-            申請中の場合、「申請を取り下げ」ボタンで申請を取り下げることができます。
+            申請中の場合、「申請を取り下げ」ボタンで申請を取り下げることができます（申請者のみ表示されます）。
           </li>
           <li>
             <span class="step-number">5</span>
-            <strong>ドラフト一覧ページ</strong>で保存したドラフトを管理できます。
+            <strong>ドラフト一覧ページ</strong>で保存したドラフトを管理できます。ドラフトは編集・送信・削除が可能です。
           </li>
         </ol>
       </div>
 
       <div class="usage-subsection">
-        <h3>5. 申請の承認</h3>
+        <h3>8. 申請の承認</h3>
         <div class="highlight">
           <strong>⚠️ 注意:</strong> 承認機能は承認者のみが利用できます。
         </div>
@@ -233,42 +359,65 @@
           </li>
           <li>
             <span class="step-number">2</span>
-            承認者のメールアドレスを入力します（ログインユーザーが自動入力されます）。
+            フィルターボタンで表示する申請を切り替えます：
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+              <li><strong>あなたの承認待ち:</strong> あなたが承認できる申請</li>
+              <li><strong>上位承認待ち:</strong> 上位の承認者が承認待ちの申請</li>
+              <li><strong>承認済み:</strong> 承認された申請</li>
+              <li><strong>却下済み:</strong> 却下された申請</li>
+            </ul>
           </li>
           <li>
             <span class="step-number">3</span>
-            「承認待ち申請を表示」ボタンをクリックします。
+            各申請の詳細を確認し、「詳細」ボタンで申請内容を確認します。
           </li>
           <li>
             <span class="step-number">4</span>
-            承認待ちの申請一覧が表示されます。
+            「承認」または「却下」ボタンをクリックします。
           </li>
           <li>
             <span class="step-number">5</span>
-            各申請の詳細を確認し、「承認」または「却下」ボタンをクリックします。
-          </li>
-          <li>
-            <span class="step-number">6</span>
             コメントを入力して確定します。
           </li>
         </ol>
 
         <div class="info-box">
-          <strong>📋 承認順序:</strong> DBPマネージャー → データマネージャー → グループオーナー → アプリケーションオーナー（アプリケーションオーナー間は順序なし）の順で承認が必要です。
+          <strong>📋 承認順序（申請タイプごとに異なります）:</strong>
+          <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>QSデータセットアクセス申請、 DBXテーブルアクセス申請</strong> 
+              <li> グループオーナー → データマネージャー → アプリケーションオーナー（アプリケーションオーナー間は順序なし）</li>
+              <li>※DBPマネージャーとビジネスオーナーは通知のみ</li>
+            </li>
+            <li><strong>QS/DBXメンバー管理申請・QS/DBXグループ管理申請:</strong> 
+              <li>グループオーナー → データマネージャー</li>
+            </li>
+          </ul>
+          <p style="margin-top: 0.5rem; margin-bottom: 0;">
+            <strong>⚠️ 重要:</strong> 前の承認者が承認しないと、次の承認者は承認できません（アプリケーションオーナー間を除く）。
+          </p>
         </div>
       </div>
 
       <div class="usage-subsection">
-        <h3>6. その他の機能</h3>
+        <h3>9. その他の機能</h3>
         <ul>
           <li>
-            <strong>データセット一覧:</strong> データセットのメタデータを閲覧できます。
+            <strong>QSデータセット一覧:</strong> Quicksightデータセットのメタデータを閲覧できます。
           </li>
           <li>
-            <strong>QSグループ一覧:</strong> グループのオーナー、メンバー、対応DBP、申請履歴を確認できます。
+            <strong>QSグループ一覧:</strong> Quicksightグループのオーナー、メンバー、対応DBP、申請履歴を確認できます。
           </li>
           <li>
-            <strong>メンバー一覧:</strong> ユーザー情報と所属グループを確認できます。
+            <strong>QSメンバー一覧:</strong> ユーザー情報と所属Quicksightグループを確認できます。
+          </li>
+          <li>
+            <strong>DBXテーブル一覧:</strong> Databricksテーブルのメタデータを閲覧できます。
+          </li>
+          <li>
+            <strong>DBXグループ一覧:</strong> Databricksグループのオーナー、メンバー、対応DBP、申請履歴を確認できます。
+          </li>
+          <li>
+            <strong>DBXメンバー一覧:</strong> ユーザー情報と所属Databricksグループを確認できます。
           </li>
           <li>
             <strong>アプリケーション一覧:</strong> アプリケーションとビジネスオーナーを確認できます。
@@ -292,12 +441,22 @@
 
       <h3>Q: 申請内容を修正できますか？</h3>
       <p>
-        <strong>A:</strong> データセットアクセス申請の場合、申請中であれば申請理由と対象データセットを修正できます。申請詳細ページの「編集」ボタンから修正してください。
+        <strong>A:</strong> データセットアクセス申請・テーブルアクセス申請の場合、申請中であれば申請理由と対象データセット/テーブルを修正できます。申請詳細ページの「編集」ボタンから修正してください。
       </p>
 
       <h3>Q: 承認画面が表示されません</h3>
       <p>
-        <strong>A:</strong> 承認画面は承認者のみがアクセスできます。DBPマネージャー、データマネージャー、グループオーナー、アプリケーションオーナーのいずれかに該当する必要があります。
+        <strong>A:</strong> 承認画面は承認者のみがアクセスできます。データマネージャー、グループオーナー、アプリケーションオーナーのいずれかに該当する必要があります。DBPマネージャーとビジネスオーナーは承認フローには含まれませんが、関連する申請を閲覧できます。
+      </p>
+
+      <h3>Q: QuicksightとDatabricksの申請は別々ですか？</h3>
+      <p>
+        <strong>A:</strong> はい、Quicksight（QS）とDatabricks（DBX）は完全に別々のシステムとして管理されています。QSデータセットとDBXテーブル、QSグループとDBXグループは別々のテーブルで管理されており、IDが重複していても問題ありません。
+      </p>
+
+      <h3>Q: ドラフト保存はどの申請タイプで使えますか？</h3>
+      <p>
+        <strong>A:</strong> すべての申請タイプ（データセットアクセス申請、テーブルアクセス申請、メンバー管理申請、グループ管理申請）でドラフト保存が利用できます。
       </p>
     </section>
   </div>

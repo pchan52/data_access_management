@@ -79,6 +79,62 @@ app.get('/api/datasets/:id', async (req, res) => {
     }
 });
 
+// APIエンドポイント: DBXテーブル一覧
+app.get('/api/dbx-tables', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                t.id,
+                t.catalog_name,
+                t.schema_name,
+                t.table_name,
+                t.description,
+                CONCAT(t.catalog_name, '.', t.schema_name, '.', t.table_name) as table_id
+            FROM dbx_tables t
+            ORDER BY t.table_name ASC
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching DBX tables:', error);
+        res.status(500).json({ error: 'DBXテーブルの取得に失敗しました' });
+    }
+});
+
+// APIエンドポイント: DBXテーブル詳細
+app.get('/api/dbx-tables/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const query = `
+            SELECT 
+                t.*,
+                CONCAT(t.catalog_name, '.', t.schema_name, '.', t.table_name) as table_id,
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'application_id', a.application_id,
+                            'application_name', a.application_name
+                        )
+                    ) FILTER (WHERE a.id IS NOT NULL),
+                    '[]'::json
+                ) as applications
+            FROM dbx_tables t
+            LEFT JOIN application_dbx_tables adt ON t.id = adt.table_id
+            LEFT JOIN applications a ON adt.application_id = a.id
+            WHERE t.id = $1
+            GROUP BY t.id
+        `;
+        const result = await pool.query(query, [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'DBXテーブルが見つかりません' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching DBX table:', error);
+        res.status(500).json({ error: 'DBXテーブルの取得に失敗しました' });
+    }
+});
+
 // APIエンドポイント: QSグループ一覧
 app.get('/api/groups', async (req, res) => {
     try {
@@ -197,6 +253,102 @@ app.get('/api/groups/:id', async (req, res) => {
     }
 });
 
+// APIエンドポイント: DBXグループ一覧
+app.get('/api/dbx-groups', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                g.id,
+                g.group_name,
+                g.group_owner,
+                g.dbp_manager
+            FROM dbx_groups g
+            ORDER BY g.group_name ASC
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching DBX groups:', error);
+        res.status(500).json({ error: 'DBXグループの取得に失敗しました' });
+    }
+});
+
+// APIエンドポイント: DBXグループ詳細
+app.get('/api/dbx-groups/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // グループ基本情報
+        const groupQuery = `
+            SELECT 
+                g.*
+            FROM dbx_groups g
+            WHERE g.id = $1
+        `;
+        const groupResult = await pool.query(groupQuery, [id]);
+        if (groupResult.rows.length === 0) {
+            return res.status(404).json({ error: 'DBXグループが見つかりません' });
+        }
+        const group = groupResult.rows[0];
+
+        // 紐づくテーブル
+        const tablesQuery = `
+            SELECT 
+                t.id,
+                t.table_name,
+                CONCAT(t.catalog_name, '.', t.schema_name, '.', t.table_name) as table_id
+            FROM dbx_tables t
+            JOIN dbx_group_tables gt ON t.id = gt.table_id
+            WHERE gt.group_id = $1
+            ORDER BY t.table_name ASC
+        `;
+        const tablesResult = await pool.query(tablesQuery, [id]);
+        group.tables = tablesResult.rows;
+
+        // 申請履歴（DBXテーブルアクセス申請）
+        const historyQuery = `
+            SELECT 
+                rh.id,
+                rh.request_date,
+                rh.status,
+                rh.requester,
+                COALESCE(
+                    string_agg(t.table_name, ', ' ORDER BY t.table_name),
+                    ''
+                ) as tables
+            FROM request_history rh
+            LEFT JOIN request_dbx_tables rdt ON rh.id = rdt.request_id
+            LEFT JOIN dbx_tables t ON rdt.table_id = t.id
+            WHERE rh.dbx_group_id = $1
+            GROUP BY rh.id, rh.request_date, rh.status, rh.requester
+            ORDER BY rh.request_date DESC
+        `;
+        const historyResult = await pool.query(historyQuery, [id]);
+        group.request_history = historyResult.rows;
+
+        // 所属ユーザー
+        const usersQuery = `
+            SELECT 
+                u.id,
+                u.user_id,
+                u.user_name,
+                u.email,
+                u.qs_username
+            FROM users u
+            JOIN user_dbx_groups ug ON u.id = ug.user_id
+            WHERE ug.group_id = $1
+            ORDER BY u.user_name ASC
+        `;
+        const usersResult = await pool.query(usersQuery, [id]);
+        group.users = usersResult.rows;
+
+        res.json(group);
+    } catch (error) {
+        console.error('Error fetching DBX group:', error);
+        res.status(500).json({ error: 'DBXグループの取得に失敗しました' });
+    }
+});
+
 // APIエンドポイント: アプリケーション一覧
 app.get('/api/applications', async (req, res) => {
     try {
@@ -252,12 +404,18 @@ app.get('/api/applications/:id', async (req, res) => {
     }
 });
 
-// APIエンドポイント: グループに対して申請可能なデータセット一覧
+// APIエンドポイント: QSグループに対して申請可能なデータセット一覧
 app.get('/api/groups/:groupId/datasets-for-request', async (req, res) => {
     try {
         const { groupId } = req.params;
         
-        // グループが既にアクセス権限を持っているデータセットを取得
+        // QSグループかどうかを確認
+        const qsGroupCheck = await pool.query('SELECT id FROM qs_groups WHERE id = $1', [groupId]);
+        if (qsGroupCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'QSグループが見つかりません' });
+        }
+        
+        // QSグループの場合：データセット一覧を返す
         const query = `
             SELECT 
                 d.id,
@@ -287,12 +445,61 @@ app.get('/api/groups/:groupId/datasets-for-request', async (req, res) => {
     }
 });
 
-// APIエンドポイント: グループがアクセス権限を持っているデータセット一覧（削除申請用）
+// APIエンドポイント: DBXグループに対して申請可能なテーブル一覧
+app.get('/api/dbx-groups/:groupId/tables-for-request', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        
+        // DBXグループかどうかを確認
+        const dbxGroupCheck = await pool.query('SELECT id FROM dbx_groups WHERE id = $1', [groupId]);
+        if (dbxGroupCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'DBXグループが見つかりません' });
+        }
+        
+        // DBXグループの場合：テーブル一覧を返す
+        const query = `
+            SELECT 
+                t.id,
+                CONCAT(t.catalog_name, '.', t.schema_name, '.', t.table_name) as table_id,
+                t.table_name,
+                t.catalog_name,
+                t.schema_name,
+                t.description,
+                CASE 
+                    WHEN EXISTS (
+                        SELECT 1 
+                        FROM request_dbx_tables rdt
+                        JOIN request_history rh ON rdt.request_id = rh.id
+                        WHERE rdt.table_id = t.id 
+                        AND rh.dbx_group_id = $1
+                        AND rh.status = 'approved'
+                        AND (rh.request_type IN ('dbx_table_access', 'dbx_remove_table_access') OR rh.request_type IS NULL)
+                    ) THEN true
+                    ELSE false
+                END as already_requested
+            FROM dbx_tables t
+            ORDER BY t.table_name ASC
+        `;
+        const result = await pool.query(query, [groupId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching DBX tables for request:', error);
+        res.status(500).json({ error: 'DBXテーブルの取得に失敗しました' });
+    }
+});
+
+// APIエンドポイント: QSグループがアクセス権限を持っているデータセット一覧（削除申請用）
 app.get('/api/groups/:groupId/datasets-with-access', async (req, res) => {
     try {
         const { groupId } = req.params;
         
-        // グループが既にアクセス権限を持っているデータセットを取得
+        // QSグループかどうかを確認
+        const qsGroupCheck = await pool.query('SELECT id FROM qs_groups WHERE id = $1', [groupId]);
+        if (qsGroupCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'QSグループが見つかりません' });
+        }
+        
+        // QSグループの場合：データセット一覧を返す
         const query = `
             SELECT 
                 d.id,
@@ -320,6 +527,47 @@ app.get('/api/groups/:groupId/datasets-with-access', async (req, res) => {
     }
 });
 
+// APIエンドポイント: DBXグループがアクセス権限を持っているテーブル一覧（削除申請用）
+app.get('/api/dbx-groups/:groupId/tables-with-access', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        
+        // DBXグループかどうかを確認
+        const dbxGroupCheck = await pool.query('SELECT id FROM dbx_groups WHERE id = $1', [groupId]);
+        if (dbxGroupCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'DBXグループが見つかりません' });
+        }
+        
+        // DBXグループの場合：テーブル一覧を返す
+        const query = `
+            SELECT 
+                t.id,
+                CONCAT(t.catalog_name, '.', t.schema_name, '.', t.table_name) as table_id,
+                t.table_name,
+                t.catalog_name,
+                t.schema_name,
+                t.description,
+                true as has_access
+            FROM dbx_tables t
+            WHERE EXISTS (
+                SELECT 1 
+                FROM request_dbx_tables rdt
+                JOIN request_history rh ON rdt.request_id = rh.id
+                WHERE rdt.table_id = t.id 
+                AND rh.dbx_group_id = $1
+                AND rh.status = 'approved'
+                AND (rh.request_type IN ('dbx_table_access', 'dbx_remove_table_access') OR rh.request_type IS NULL)
+            )
+            ORDER BY t.table_name ASC
+        `;
+        const result = await pool.query(query, [groupId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching DBX tables with access:', error);
+        res.status(500).json({ error: 'DBXテーブルの取得に失敗しました' });
+    }
+});
+
 // APIエンドポイント: JIRA用テキストのプレビュー生成
 app.post('/api/requests/preview', async (req, res) => {
     try {
@@ -327,7 +575,7 @@ app.post('/api/requests/preview', async (req, res) => {
         const finalRequestType = requestType || 'dataset_access';
         
         if (!groupId || !datasetIds || datasetIds.length === 0) {
-            return res.status(400).json({ error: 'グループIDとデータセットIDが必要です' });
+            return res.status(400).json({ error: 'グループIDとデータセット/テーブルIDが必要です' });
         }
 
         // ユーザー情報を取得
@@ -340,60 +588,85 @@ app.post('/api/requests/preview', async (req, res) => {
             }
         }
 
-        // グループ情報を取得
-        const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
-        const groupResult = await pool.query(groupQuery, [groupId]);
-        if (groupResult.rows.length === 0) {
-            return res.status(404).json({ error: 'グループが見つかりません' });
-        }
-        const group = groupResult.rows[0];
-
-        // グループオーナーの名前を取得
-        let groupOwnerName = '';
-        if (group.group_owner) {
-            const ownerQuery = `SELECT user_name FROM users WHERE email = $1`;
-            const ownerResult = await pool.query(ownerQuery, [group.group_owner]);
-            if (ownerResult.rows.length > 0) {
-                groupOwnerName = ownerResult.rows[0].user_name;
+        // DBX用のrequestTypeかどうかを判定
+        const isDbx = finalRequestType.startsWith('dbx_');
+        
+        let group, datasets, applications;
+        
+        if (isDbx) {
+            // DBXグループ情報を取得
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM dbx_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'DBXグループが見つかりません' });
             }
-        }
-
-        // DBPマネージャーの名前を取得
-        let dbpManagerName = '';
-        if (group.dbp_manager) {
-            const dbpQuery = `SELECT user_name FROM users WHERE email = $1`;
-            const dbpResult = await pool.query(dbpQuery, [group.dbp_manager]);
-            if (dbpResult.rows.length > 0) {
-                dbpManagerName = dbpResult.rows[0].user_name;
+            group = groupResult.rows[0];
+            
+            // テーブル情報を取得
+            const tableQuery = `
+                SELECT 
+                    id,
+                    catalog_name,
+                    schema_name,
+                    table_name,
+                    description,
+                    CONCAT(catalog_name, '.', schema_name, '.', table_name) as table_id
+                FROM dbx_tables 
+                WHERE id = ANY($1::int[])
+                ORDER BY table_name ASC
+            `;
+            const tableResult = await pool.query(tableQuery, [datasetIds]);
+            datasets = tableResult.rows;
+            
+            // テーブルに関連するアプリケーション情報を取得
+            const appQuery = `
+                SELECT DISTINCT
+                    a.application_id,
+                    a.application_name,
+                    a.app_owner
+                FROM applications a
+                JOIN application_dbx_tables adt ON a.id = adt.application_id
+                WHERE adt.table_id = ANY($1::int[])
+                ORDER BY a.application_name ASC
+            `;
+            const appResult = await pool.query(appQuery, [datasetIds]);
+            applications = appResult.rows;
+        } else {
+            // QSグループ情報を取得
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'QSグループが見つかりません' });
             }
+            group = groupResult.rows[0];
+            
+            // データセット情報を取得
+            const datasetQuery = `
+                SELECT dataset_id, dataset_name 
+                FROM datasets 
+                WHERE id = ANY($1::int[])
+                ORDER BY dataset_name ASC
+            `;
+            const datasetResult = await pool.query(datasetQuery, [datasetIds]);
+            datasets = datasetResult.rows;
+            
+            // データセットに関連するアプリケーション情報を取得
+            const appQuery = `
+                SELECT DISTINCT
+                    a.application_id,
+                    a.application_name,
+                    a.app_owner
+                FROM applications a
+                JOIN application_datasets ad ON a.id = ad.application_id
+                WHERE ad.dataset_id = ANY($1::int[])
+                ORDER BY a.application_name ASC
+            `;
+            const appResult = await pool.query(appQuery, [datasetIds]);
+            applications = appResult.rows;
         }
-
-        // データセット情報を取得
-        const datasetQuery = `
-            SELECT dataset_id, dataset_name 
-            FROM datasets 
-            WHERE id = ANY($1::int[])
-            ORDER BY dataset_name ASC
-        `;
-        const datasetResult = await pool.query(datasetQuery, [datasetIds]);
-        const datasets = datasetResult.rows;
-
-        // データセットに関連するアプリケーション情報を取得
-        const appQuery = `
-            SELECT DISTINCT
-                a.application_id,
-                a.application_name,
-                a.app_owner
-            FROM applications a
-            JOIN application_datasets ad ON a.id = ad.application_id
-            WHERE ad.dataset_id = ANY($1::int[])
-            ORDER BY a.application_name ASC
-        `;
-        const appResult = await pool.query(appQuery, [datasetIds]);
-        const applications = appResult.rows;
 
         // JIRA用テキストを生成
-        const jiraText = await generateJiraText(userInfo, group, datasets, applications, '', finalRequestType);
+        const jiraText = await generateJiraText(userInfo, group, datasets, applications, '', finalRequestType, isDbx);
 
         res.json({ jiraText });
     } catch (error) {
@@ -403,18 +676,65 @@ app.post('/api/requests/preview', async (req, res) => {
 });
 
 // 共通関数: JIRAテキスト生成
-async function generateJiraText(userInfo, group, datasets, applications, requestReason, requestType = 'dataset_access') {
+async function generateJiraText(userInfo, group, datasets, applications, requestReason, requestType = 'dataset_access', isDbx = false) {
     let jiraText = '';
     jiraText += `申請者: ${userInfo.user_name || '(未入力)'}${userInfo.email ? ` (${userInfo.email})` : ''}\n\n`;
-    jiraText += `申請タイプ: ${requestType === 'remove_dataset_access' ? 'データセットアクセス削除' : 'データセットアクセス'}\n\n`;
-    jiraText += `対象グループ: ${group.group_name}\n\n`;
-    jiraText += `${requestType === 'remove_dataset_access' ? '削除対象データセット(ID):' : '対象データセット(ID):'}\n`;
-    datasets.forEach((ds, index) => {
-        jiraText += `${index + 1}. ${ds.dataset_name} (${ds.dataset_id})\n`;
-    });
-    jiraText += `\n`;
     
-    if (applications.length > 0) {
+    // 申請タイプの判定
+    if (isDbx) {
+        if (requestType === 'dbx_remove_table_access') {
+            jiraText += `申請タイプ: DBXテーブルアクセス削除\n\n`;
+        } else if (requestType === 'dbx_add_members') {
+            jiraText += `申請タイプ: DBXメンバー追加\n\n`;
+        } else if (requestType === 'dbx_remove_members') {
+            jiraText += `申請タイプ: DBXメンバー削除\n\n`;
+        } else if (requestType === 'dbx_create_group') {
+            jiraText += `申請タイプ: DBXグループ作成\n\n`;
+        } else if (requestType === 'dbx_remove_group') {
+            jiraText += `申請タイプ: DBXグループ削除\n\n`;
+        } else {
+            jiraText += `申請タイプ: DBXテーブルアクセス\n\n`;
+        }
+    } else {
+        if (requestType === 'remove_dataset_access') {
+            jiraText += `申請タイプ: データセットアクセス削除\n\n`;
+        } else if (requestType === 'add_members') {
+            jiraText += `申請タイプ: メンバー追加\n\n`;
+        } else if (requestType === 'remove_members') {
+            jiraText += `申請タイプ: メンバー削除\n\n`;
+        } else if (requestType === 'create_group') {
+            jiraText += `申請タイプ: グループ作成\n\n`;
+        } else if (requestType === 'remove_group') {
+            jiraText += `申請タイプ: グループ削除\n\n`;
+        } else {
+            jiraText += `申請タイプ: データセットアクセス\n\n`;
+        }
+    }
+    
+    jiraText += `対象グループ: ${group.group_name}\n\n`;
+    
+    // データセット/テーブル情報（データセットアクセス申請の場合のみ）
+    if (datasets && datasets.length > 0) {
+        const label = isDbx 
+            ? (requestType === 'dbx_remove_table_access' ? '削除対象テーブル:' : '対象テーブル:')
+            : (requestType === 'remove_dataset_access' ? '削除対象データセット(ID):' : '対象データセット(ID):');
+        jiraText += `${label}\n`;
+        datasets.forEach((ds, index) => {
+            if (isDbx) {
+                // DBXテーブルの場合、catalog.schema.table形式で表示
+                const tableName = ds.table_name || '名称不明';
+                const tableId = ds.table_id || (ds.catalog_name && ds.schema_name && ds.table_name 
+                    ? `${ds.catalog_name}.${ds.schema_name}.${ds.table_name}` 
+                    : 'ID不明');
+                jiraText += `${index + 1}. ${tableName} (${tableId})\n`;
+            } else {
+                jiraText += `${index + 1}. ${ds.dataset_name} (${ds.dataset_id})\n`;
+            }
+        });
+        jiraText += `\n`;
+    }
+    
+    if (applications && applications.length > 0) {
         jiraText += `該当アプリケーション(ID):\n`;
         applications.forEach((app, index) => {
             jiraText += `${index + 1}. ${app.application_name} (${app.application_id})\n`;
@@ -506,7 +826,7 @@ app.post('/api/requests/draft', async (req, res) => {
         const finalRequestType = requestType || 'dataset_access';
         
         if (!groupId || !datasetIds || datasetIds.length === 0) {
-            return res.status(400).json({ error: 'グループIDとデータセットIDが必要です' });
+            return res.status(400).json({ error: 'グループIDとデータセット/テーブルIDが必要です' });
         }
         
         if (!requestReason || requestReason.trim() === '') {
@@ -525,75 +845,155 @@ app.post('/api/requests/draft', async (req, res) => {
             }
         }
 
-        // グループ情報を取得
-        const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
-        const groupResult = await pool.query(groupQuery, [groupId]);
-        if (groupResult.rows.length === 0) {
-            return res.status(404).json({ error: 'グループが見つかりません' });
+        // DBX用のrequestTypeかどうかを判定
+        const isDbx = finalRequestType.startsWith('dbx_');
+        let group, datasets, applications;
+        
+        if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+            // DBXグループ情報を取得
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM dbx_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'DBXグループが見つかりません' });
+            }
+            group = groupResult.rows[0];
+            
+            // テーブル情報を取得
+            const tableQuery = `
+                SELECT 
+                    id,
+                    catalog_name,
+                    schema_name,
+                    table_name,
+                    description,
+                    CONCAT(catalog_name, '.', schema_name, '.', table_name) as dataset_id,
+                    table_name as dataset_name
+                FROM dbx_tables 
+                WHERE id = ANY($1::int[])
+                ORDER BY table_name ASC
+            `;
+            const tableResult = await pool.query(tableQuery, [datasetIds]);
+            datasets = tableResult.rows;
+            
+            // テーブルに関連するアプリケーション情報を取得
+            const appQuery = `
+                SELECT DISTINCT
+                    a.application_id,
+                    a.application_name,
+                    a.app_owner
+                FROM applications a
+                JOIN application_dbx_tables adt ON a.id = adt.application_id
+                WHERE adt.table_id = ANY($1::int[])
+                ORDER BY a.application_name ASC
+            `;
+            const appResult = await pool.query(appQuery, [datasetIds]);
+            applications = appResult.rows;
+        } else {
+            // QSグループ情報を取得
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'QSグループが見つかりません' });
+            }
+            group = groupResult.rows[0];
+            
+            // データセット情報を取得
+            const datasetQuery = `
+                SELECT dataset_id, dataset_name 
+                FROM datasets 
+                WHERE id = ANY($1::int[])
+                ORDER BY dataset_name ASC
+            `;
+            const datasetResult = await pool.query(datasetQuery, [datasetIds]);
+            datasets = datasetResult.rows;
+            
+            // データセットに関連するアプリケーション情報を取得
+            const appQuery = `
+                SELECT DISTINCT
+                    a.application_id,
+                    a.application_name,
+                    a.app_owner
+                FROM applications a
+                JOIN application_datasets ad ON a.id = ad.application_id
+                WHERE ad.dataset_id = ANY($1::int[])
+                ORDER BY a.application_name ASC
+            `;
+            const appResult = await pool.query(appQuery, [datasetIds]);
+            applications = appResult.rows;
         }
-        const group = groupResult.rows[0];
-
-        // データセット情報を取得
-        const datasetQuery = `
-            SELECT dataset_id, dataset_name 
-            FROM datasets 
-            WHERE id = ANY($1::int[])
-            ORDER BY dataset_name ASC
-        `;
-        const datasetResult = await pool.query(datasetQuery, [datasetIds]);
-        const datasets = datasetResult.rows;
-
-        // データセットに関連するアプリケーション情報を取得
-        const appQuery = `
-            SELECT DISTINCT
-                a.application_id,
-                a.application_name,
-                a.app_owner
-            FROM applications a
-            JOIN application_datasets ad ON a.id = ad.application_id
-            WHERE ad.dataset_id = ANY($1::int[])
-            ORDER BY a.application_name ASC
-        `;
-        const appResult = await pool.query(appQuery, [datasetIds]);
-        const applications = appResult.rows;
 
         // JIRA用テキストを生成
-        const jiraText = await generateJiraText(userInfo, group, datasets, applications, requestReason, finalRequestType);
+        const jiraText = await generateJiraText(userInfo, group, datasets, applications, requestReason, finalRequestType, isDbx);
 
         let savedRequestId;
         if (requestId) {
             // 既存のドラフトを更新
-            const updateRequestQuery = `
-                UPDATE request_history 
-                SET group_id = $1, requester = $2, jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
-                WHERE id = $6 AND status = 'draft'
-                RETURNING id
-            `;
-            const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
-            if (updateResult.rows.length === 0) {
-                return res.status(404).json({ error: 'ドラフトが見つかりません' });
+            if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+                const updateRequestQuery = `
+                    UPDATE request_history 
+                    SET dbx_group_id = $1, requester = $2, jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
+                    WHERE id = $6 AND status = 'draft'
+                    RETURNING id
+                `;
+                const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
+                if (updateResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'ドラフトが見つかりません' });
+                }
+                savedRequestId = updateResult.rows[0].id;
+                
+                // 既存のテーブル関連を削除
+                await pool.query('DELETE FROM request_dbx_tables WHERE request_id = $1', [requestId]);
+            } else {
+                const updateRequestQuery = `
+                    UPDATE request_history 
+                    SET group_id = $1, requester = $2, jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
+                    WHERE id = $6 AND status = 'draft'
+                    RETURNING id
+                `;
+                const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
+                if (updateResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'ドラフトが見つかりません' });
+                }
+                savedRequestId = updateResult.rows[0].id;
+                
+                // 既存のデータセット関連を削除
+                await pool.query('DELETE FROM request_datasets WHERE request_id = $1', [requestId]);
             }
-            savedRequestId = updateResult.rows[0].id;
-            
-            // 既存のデータセット関連を削除
-            await pool.query('DELETE FROM request_datasets WHERE request_id = $1', [requestId]);
         } else {
             // 新しいドラフトを作成
-            const insertRequestQuery = `
-                INSERT INTO request_history (group_id, requester, status, jira_text, request_reason, request_type)
-                VALUES ($1, $2, 'draft', $3, $4, $5)
-                RETURNING id
-            `;
-            const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
-            savedRequestId = requestResult.rows[0].id;
+            if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+                const insertRequestQuery = `
+                    INSERT INTO request_history (dbx_group_id, requester, status, jira_text, request_reason, request_type)
+                    VALUES ($1, $2, 'draft', $3, $4, $5)
+                    RETURNING id
+                `;
+                const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
+                savedRequestId = requestResult.rows[0].id;
+            } else {
+                const insertRequestQuery = `
+                    INSERT INTO request_history (group_id, requester, status, jira_text, request_reason, request_type)
+                    VALUES ($1, $2, 'draft', $3, $4, $5)
+                    RETURNING id
+                `;
+                const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
+                savedRequestId = requestResult.rows[0].id;
+            }
         }
 
-        // 申請とデータセットの関連を保存
-        const insertRequestDatasetsQuery = `
-            INSERT INTO request_datasets (request_id, dataset_id)
-            SELECT $1, unnest($2::int[])
-        `;
-        await pool.query(insertRequestDatasetsQuery, [savedRequestId, datasetIds]);
+        // 申請とデータセット/テーブルの関連を保存
+        if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+            const insertRequestTablesQuery = `
+                INSERT INTO request_dbx_tables (request_id, table_id)
+                SELECT $1, unnest($2::int[])
+            `;
+            await pool.query(insertRequestTablesQuery, [savedRequestId, datasetIds]);
+        } else {
+            const insertRequestDatasetsQuery = `
+                INSERT INTO request_datasets (request_id, dataset_id)
+                SELECT $1, unnest($2::int[])
+            `;
+            await pool.query(insertRequestDatasetsQuery, [savedRequestId, datasetIds]);
+        }
 
         res.json({ success: true, requestId: savedRequestId, jiraText, message: 'ドラフトを保存しました' });
     } catch (error) {
@@ -845,7 +1245,7 @@ app.post('/api/requests/submit', async (req, res) => {
         const finalRequestType = requestType || 'dataset_access';
         
         if (!groupId || !datasetIds || datasetIds.length === 0) {
-            return res.status(400).json({ error: 'グループIDとデータセットIDが必要です' });
+            return res.status(400).json({ error: 'グループIDとデータセット/テーブルIDが必要です' });
         }
         
         if (!requestReason || requestReason.trim() === '') {
@@ -864,83 +1264,164 @@ app.post('/api/requests/submit', async (req, res) => {
             }
         }
 
-        // グループ情報を取得
-        const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
-        const groupResult = await pool.query(groupQuery, [groupId]);
-        if (groupResult.rows.length === 0) {
-            return res.status(404).json({ error: 'グループが見つかりません' });
+        // DBX用のrequestTypeかどうかを判定
+        const isDbx = finalRequestType.startsWith('dbx_');
+        let group, datasets, applications;
+        
+        if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+            // DBXグループ情報を取得
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM dbx_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'DBXグループが見つかりません' });
+            }
+            group = groupResult.rows[0];
+            
+            // テーブル情報を取得
+            const tableQuery = `
+                SELECT 
+                    id,
+                    catalog_name,
+                    schema_name,
+                    table_name,
+                    description,
+                    CONCAT(catalog_name, '.', schema_name, '.', table_name) as dataset_id,
+                    table_name as dataset_name
+                FROM dbx_tables 
+                WHERE id = ANY($1::int[])
+                ORDER BY table_name ASC
+            `;
+            const tableResult = await pool.query(tableQuery, [datasetIds]);
+            datasets = tableResult.rows;
+            
+            // テーブルに関連するアプリケーション情報を取得
+            const appQuery = `
+                SELECT DISTINCT
+                    a.application_id,
+                    a.application_name,
+                    a.app_owner
+                FROM applications a
+                JOIN application_dbx_tables adt ON a.id = adt.application_id
+                WHERE adt.table_id = ANY($1::int[])
+                ORDER BY a.application_name ASC
+            `;
+            const appResult = await pool.query(appQuery, [datasetIds]);
+            applications = appResult.rows;
+        } else {
+            // QSグループ情報を取得
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'QSグループが見つかりません' });
+            }
+            group = groupResult.rows[0];
+            
+            // データセット情報を取得
+            const datasetQuery = `
+                SELECT dataset_id, dataset_name 
+                FROM datasets 
+                WHERE id = ANY($1::int[])
+                ORDER BY dataset_name ASC
+            `;
+            const datasetResult = await pool.query(datasetQuery, [datasetIds]);
+            datasets = datasetResult.rows;
+            
+            // データセットに関連するアプリケーション情報を取得
+            const appQuery = `
+                SELECT DISTINCT
+                    a.application_id,
+                    a.application_name,
+                    a.app_owner
+                FROM applications a
+                JOIN application_datasets ad ON a.id = ad.application_id
+                WHERE ad.dataset_id = ANY($1::int[])
+                ORDER BY a.application_name ASC
+            `;
+            const appResult = await pool.query(appQuery, [datasetIds]);
+            applications = appResult.rows;
         }
-        const group = groupResult.rows[0];
-
-        // データセット情報を取得
-        const datasetQuery = `
-            SELECT dataset_id, dataset_name 
-            FROM datasets 
-            WHERE id = ANY($1::int[])
-            ORDER BY dataset_name ASC
-        `;
-        const datasetResult = await pool.query(datasetQuery, [datasetIds]);
-        const datasets = datasetResult.rows;
-
-        // データセットに関連するアプリケーション情報を取得
-        const appQuery = `
-            SELECT DISTINCT
-                a.application_id,
-                a.application_name,
-                a.app_owner
-            FROM applications a
-            JOIN application_datasets ad ON a.id = ad.application_id
-            WHERE ad.dataset_id = ANY($1::int[])
-            ORDER BY a.application_name ASC
-        `;
-        const appResult = await pool.query(appQuery, [datasetIds]);
-        const applications = appResult.rows;
 
         // JIRA用テキストを生成
-        const jiraText = await generateJiraText(userInfo, group, datasets, applications, requestReason);
+        const jiraText = await generateJiraText(userInfo, group, datasets, applications, requestReason, finalRequestType, isDbx);
 
         let savedRequestId;
         if (requestId) {
             // 既存のドラフトを申請に変更
-            const updateRequestQuery = `
-                UPDATE request_history 
-                SET group_id = $1, requester = $2, status = 'requested', jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
-                WHERE id = $6 AND status = 'draft'
-                RETURNING id
-            `;
-            const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
-            if (updateResult.rows.length === 0) {
-                return res.status(404).json({ error: 'ドラフトが見つかりません' });
+            if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+                const updateRequestQuery = `
+                    UPDATE request_history 
+                    SET dbx_group_id = $1, requester = $2, status = 'requested', jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
+                    WHERE id = $6 AND status = 'draft'
+                    RETURNING id
+                `;
+                const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
+                if (updateResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'ドラフトが見つかりません' });
+                }
+                savedRequestId = updateResult.rows[0].id;
+                
+                // 既存のテーブル関連を削除
+                await pool.query('DELETE FROM request_dbx_tables WHERE request_id = $1', [requestId]);
+            } else {
+                const updateRequestQuery = `
+                    UPDATE request_history 
+                    SET group_id = $1, requester = $2, status = 'requested', jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
+                    WHERE id = $6 AND status = 'draft'
+                    RETURNING id
+                `;
+                const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
+                if (updateResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'ドラフトが見つかりません' });
+                }
+                savedRequestId = updateResult.rows[0].id;
+                
+                // 既存のデータセット関連を削除
+                await pool.query('DELETE FROM request_datasets WHERE request_id = $1', [requestId]);
             }
-            savedRequestId = updateResult.rows[0].id;
-            
-            // 既存のデータセット関連を削除
-            await pool.query('DELETE FROM request_datasets WHERE request_id = $1', [requestId]);
         } else {
             // 新しい申請を作成
-            const insertRequestQuery = `
-                INSERT INTO request_history (group_id, requester, status, jira_text, request_reason, request_type)
-                VALUES ($1, $2, 'requested', $3, $4, $5)
-                RETURNING id
-            `;
-            const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
-            savedRequestId = requestResult.rows[0].id;
+            if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+                const insertRequestQuery = `
+                    INSERT INTO request_history (dbx_group_id, requester, status, jira_text, request_reason, request_type)
+                    VALUES ($1, $2, 'requested', $3, $4, $5)
+                    RETURNING id
+                `;
+                const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
+                savedRequestId = requestResult.rows[0].id;
+            } else {
+                const insertRequestQuery = `
+                    INSERT INTO request_history (group_id, requester, status, jira_text, request_reason, request_type)
+                    VALUES ($1, $2, 'requested', $3, $4, $5)
+                    RETURNING id
+                `;
+                const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
+                savedRequestId = requestResult.rows[0].id;
+            }
         }
 
-        // 申請とデータセットの関連を保存
-        const insertRequestDatasetsQuery = `
-            INSERT INTO request_datasets (request_id, dataset_id)
-            SELECT $1, unnest($2::int[])
-        `;
-        await pool.query(insertRequestDatasetsQuery, [savedRequestId, datasetIds]);
+        // 申請とデータセット/テーブルの関連を保存
+        if (isDbx && (finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access')) {
+            const insertRequestTablesQuery = `
+                INSERT INTO request_dbx_tables (request_id, table_id)
+                SELECT $1, unnest($2::int[])
+            `;
+            await pool.query(insertRequestTablesQuery, [savedRequestId, datasetIds]);
+        } else {
+            const insertRequestDatasetsQuery = `
+                INSERT INTO request_datasets (request_id, dataset_id)
+                SELECT $1, unnest($2::int[])
+            `;
+            await pool.query(insertRequestDatasetsQuery, [savedRequestId, datasetIds]);
+        }
 
         // 承認レコードを自動作成
-        // データセットアクセス申請（追加・削除）: グループオーナー → データマネージャー → アプリケーションオーナー
+        // データセット/テーブルアクセス申請（追加・削除）: グループオーナー → データマネージャー → アプリケーションオーナー
         // DBPマネージャーとビジネスオーナーは承認フローには含めない（通知のみ）
         const approvalRecords = [];
         
-        // データセットアクセス申請（追加・削除）の場合のみ承認レコードを作成
-        if (finalRequestType === 'dataset_access' || finalRequestType === 'remove_dataset_access') {
+        // データセット/テーブルアクセス申請（追加・削除）の場合のみ承認レコードを作成
+        if (finalRequestType === 'dataset_access' || finalRequestType === 'remove_dataset_access' || 
+            finalRequestType === 'dbx_table_access' || finalRequestType === 'dbx_remove_table_access') {
             // グループオーナー（最初）
             if (group.group_owner) {
                 approvalRecords.push({
@@ -1238,8 +1719,8 @@ app.get('/api/users/:id', async (req, res) => {
         }
         const user = userResult.rows[0];
 
-        // 所属グループ（オーナーとDBPマネージャーのユーザー名も取得）
-        const groupsQuery = `
+        // 所属グループ（QSグループとDBXグループ、オーナーとDBPマネージャーのユーザー名も取得）
+        const qsGroupsQuery = `
             SELECT 
                 g.id,
                 g.group_name,
@@ -1254,8 +1735,28 @@ app.get('/api/users/:id', async (req, res) => {
             WHERE ug.user_id = $1
             ORDER BY g.group_name ASC
         `;
-        const groupsResult = await pool.query(groupsQuery, [id]);
-        user.groups = groupsResult.rows;
+        const qsGroupsResult = await pool.query(qsGroupsQuery, [id]);
+        
+        // DBXグループも取得
+        const dbxGroupsQuery = `
+            SELECT 
+                g.id,
+                g.group_name,
+                g.group_owner,
+                g.dbp_manager,
+                owner_user.user_name as group_owner_name,
+                dbp_user.user_name as dbp_manager_name
+            FROM dbx_groups g
+            JOIN user_dbx_groups ug ON g.id = ug.group_id
+            LEFT JOIN users owner_user ON g.group_owner = owner_user.email
+            LEFT JOIN users dbp_user ON g.dbp_manager = dbp_user.email
+            WHERE ug.user_id = $1
+            ORDER BY g.group_name ASC
+        `;
+        const dbxGroupsResult = await pool.query(dbxGroupsQuery, [id]);
+        
+        // QSグループとDBXグループを結合
+        user.groups = [...qsGroupsResult.rows, ...dbxGroupsResult.rows];
 
         res.json(user);
     } catch (error) {
@@ -1398,15 +1899,19 @@ app.get('/api/requests/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
-        // 申請基本情報
+        // 申請基本情報（QSグループとDBXグループの両方を考慮）
         const requestQuery = `
             SELECT 
                 rh.*,
-                g.group_name,
-                g.group_owner,
-                g.dbp_manager
+                qsg.group_name as qs_group_name,
+                qsg.group_owner as qs_group_owner,
+                qsg.dbp_manager as qs_dbp_manager,
+                dbxg.group_name as dbx_group_name,
+                dbxg.group_owner as dbx_group_owner,
+                dbxg.dbp_manager as dbx_dbp_manager
             FROM request_history rh
-            LEFT JOIN qs_groups g ON rh.group_id = g.id
+            LEFT JOIN qs_groups qsg ON rh.group_id = qsg.id
+            LEFT JOIN dbx_groups dbxg ON rh.dbx_group_id = dbxg.id
             WHERE rh.id = $1
         `;
         const requestResult = await pool.query(requestQuery, [id]);
@@ -1415,8 +1920,19 @@ app.get('/api/requests/:id', async (req, res) => {
         }
         const request = requestResult.rows[0];
         
+        // グループ情報を統合
+        if (request.dbx_group_name) {
+            request.group_name = request.dbx_group_name;
+            request.group_owner = request.dbx_group_owner;
+            request.dbp_manager = request.dbx_dbp_manager;
+        } else if (request.qs_group_name) {
+            request.group_name = request.qs_group_name;
+            request.group_owner = request.qs_group_owner;
+            request.dbp_manager = request.qs_dbp_manager;
+        }
+        
         // 新規グループ作成申請の場合、group_nameを設定
-        if (request.request_type === 'create_group' && request.new_group_name) {
+        if ((request.request_type === 'create_group' || request.request_type === 'dbx_create_group') && request.new_group_name) {
             request.group_name = request.new_group_name;
         }
 
@@ -1430,27 +1946,49 @@ app.get('/api/requests/:id', async (req, res) => {
             }
         }
 
-        // データセット情報（データセットアクセス申請の場合）
-        if (request.request_type === 'dataset_access' || request.request_type === 'remove_dataset_access' || !request.request_type) {
-            const datasetsQuery = `
-                SELECT 
-                    d.id,
-                    d.dataset_id,
-                    d.dataset_name,
-                    d.description
-                FROM datasets d
-                JOIN request_datasets rd ON d.id = rd.dataset_id
-                WHERE rd.request_id = $1
-                ORDER BY d.dataset_name ASC
-            `;
-            const datasetsResult = await pool.query(datasetsQuery, [id]);
-            request.datasets = datasetsResult.rows;
+        // データセット/テーブル情報（データセット/テーブルアクセス申請の場合）
+        if (request.request_type === 'dataset_access' || request.request_type === 'remove_dataset_access' || 
+            request.request_type === 'dbx_table_access' || request.request_type === 'dbx_remove_table_access' || !request.request_type) {
+            if (request.request_type === 'dbx_table_access' || request.request_type === 'dbx_remove_table_access') {
+                // DBXテーブル情報を取得
+                const tablesQuery = `
+                    SELECT 
+                        t.id,
+                        CONCAT(t.catalog_name, '.', t.schema_name, '.', t.table_name) as table_id,
+                        t.table_name,
+                        t.description,
+                        t.catalog_name,
+                        t.schema_name
+                    FROM dbx_tables t
+                    JOIN request_dbx_tables rdt ON t.id = rdt.table_id
+                    WHERE rdt.request_id = $1
+                    ORDER BY t.table_name ASC
+                `;
+                const tablesResult = await pool.query(tablesQuery, [id]);
+                request.datasets = tablesResult.rows;
+            } else {
+                // QSデータセット情報を取得
+                const datasetsQuery = `
+                    SELECT 
+                        d.id,
+                        d.dataset_id,
+                        d.dataset_name,
+                        d.description
+                    FROM datasets d
+                    JOIN request_datasets rd ON d.id = rd.dataset_id
+                    WHERE rd.request_id = $1
+                    ORDER BY d.dataset_name ASC
+                `;
+                const datasetsResult = await pool.query(datasetsQuery, [id]);
+                request.datasets = datasetsResult.rows;
+            }
         } else {
             request.datasets = [];
         }
         
         // メンバー情報（メンバー追加/削除申請の場合）
-        if (request.request_type === 'add_members' || request.request_type === 'remove_members') {
+        if (request.request_type === 'add_members' || request.request_type === 'remove_members' ||
+            request.request_type === 'dbx_add_members' || request.request_type === 'dbx_remove_members') {
             const membersQuery = `
                 SELECT 
                     u.id as user_id,
@@ -1468,23 +2006,44 @@ app.get('/api/requests/:id', async (req, res) => {
             request.members = [];
         }
 
-        // アプリケーション情報（データセットアクセス申請（追加・削除）の場合のみ）
-        if (request.request_type === 'dataset_access' || request.request_type === 'remove_dataset_access' || !request.request_type) {
-            const applicationsQuery = `
-                SELECT DISTINCT
-                    a.id,
-                    a.application_id,
-                    a.application_name,
-                    a.app_owner,
-                    a.business_owner
-                FROM applications a
-                JOIN application_datasets ad ON a.id = ad.application_id
-                JOIN request_datasets rd ON ad.dataset_id = rd.dataset_id
-                WHERE rd.request_id = $1
-                ORDER BY a.application_name ASC
-            `;
-            const applicationsResult = await pool.query(applicationsQuery, [id]);
-            request.applications = applicationsResult.rows;
+        // アプリケーション情報（データセット/テーブルアクセス申請（追加・削除）の場合のみ）
+        if (request.request_type === 'dataset_access' || request.request_type === 'remove_dataset_access' ||
+            request.request_type === 'dbx_table_access' || request.request_type === 'dbx_remove_table_access' || !request.request_type) {
+            if (request.request_type === 'dbx_table_access' || request.request_type === 'dbx_remove_table_access') {
+                // DBXテーブルに関連するアプリケーション情報を取得
+                const applicationsQuery = `
+                    SELECT DISTINCT
+                        a.id,
+                        a.application_id,
+                        a.application_name,
+                        a.app_owner,
+                        a.business_owner
+                    FROM applications a
+                    JOIN application_dbx_tables adt ON a.id = adt.application_id
+                    JOIN request_dbx_tables rdt ON adt.table_id = rdt.table_id
+                    WHERE rdt.request_id = $1
+                    ORDER BY a.application_name ASC
+                `;
+                const applicationsResult = await pool.query(applicationsQuery, [id]);
+                request.applications = applicationsResult.rows;
+            } else {
+                // QSデータセットに関連するアプリケーション情報を取得
+                const applicationsQuery = `
+                    SELECT DISTINCT
+                        a.id,
+                        a.application_id,
+                        a.application_name,
+                        a.app_owner,
+                        a.business_owner
+                    FROM applications a
+                    JOIN application_datasets ad ON a.id = ad.application_id
+                    JOIN request_datasets rd ON ad.dataset_id = rd.dataset_id
+                    WHERE rd.request_id = $1
+                    ORDER BY a.application_name ASC
+                `;
+                const applicationsResult = await pool.query(applicationsQuery, [id]);
+                request.applications = applicationsResult.rows;
+            }
         } else {
             request.applications = [];
         }
@@ -1496,13 +2055,21 @@ app.get('/api/requests/:id', async (req, res) => {
         request.request_reason = request.request_reason || null;
 
         // 承認ステータスを取得（申請タイプに応じた順序で）
-        const orderByClause = request.request_type === 'add_members' || request.request_type === 'create_group' || request.request_type === 'remove_group' || request.request_type === 'remove_members'
+        const isDbxRequest = request.request_type && request.request_type.startsWith('dbx_');
+        const isMemberOrGroupRequest = request.request_type === 'add_members' || request.request_type === 'create_group' || 
+                                       request.request_type === 'remove_group' || request.request_type === 'remove_members' ||
+                                       request.request_type === 'dbx_add_members' || request.request_type === 'dbx_create_group' || 
+                                       request.request_type === 'dbx_remove_group' || request.request_type === 'dbx_remove_members';
+        const isDatasetOrTableRequest = request.request_type === 'dataset_access' || request.request_type === 'remove_dataset_access' ||
+                                        request.request_type === 'dbx_table_access' || request.request_type === 'dbx_remove_table_access' || !request.request_type;
+        
+        const orderByClause = isMemberOrGroupRequest
             ? `CASE approver_type
                 WHEN 'group_owner' THEN 1
                 WHEN 'data_manager' THEN 2
                 ELSE 3
               END`
-            : (request.request_type === 'dataset_access' || request.request_type === 'remove_dataset_access' || !request.request_type)
+            : isDatasetOrTableRequest
             ? `CASE approver_type
                 WHEN 'group_owner' THEN 1
                 WHEN 'data_manager' THEN 2
@@ -1532,15 +2099,30 @@ app.get('/api/requests/:id', async (req, res) => {
         const approvalsResult = await pool.query(approvalsQuery, [id]);
         request.approvals = approvalsResult.rows;
 
-        // 通知済み（DBPマネージャーとビジネスオーナー）を取得（データセットアクセス申請の場合のみ）
+        // 通知済み（DBPマネージャーとビジネスオーナー）を取得（データセット/テーブルアクセス申請の場合のみ）
         request.notifications = [];
-        if (request.request_type === 'dataset_access' || !request.request_type) {
+        if (request.request_type === 'dataset_access' || request.request_type === 'dbx_table_access' || !request.request_type) {
             // DBPマネージャーを取得
             if (request.group_id) {
                 const groupQuery = `SELECT dbp_manager FROM qs_groups WHERE id = $1`;
                 const groupResult = await pool.query(groupQuery, [request.group_id]);
                 if (groupResult.rows.length > 0 && groupResult.rows[0].dbp_manager) {
-                    // DBPマネージャーの名前を取得
+                    const dbpManagerEmail = groupResult.rows[0].dbp_manager;
+                    const dbpManagerQuery = `SELECT user_name FROM users WHERE email = $1`;
+                    const dbpManagerResult = await pool.query(dbpManagerQuery, [dbpManagerEmail]);
+                    const dbpManagerName = dbpManagerResult.rows.length > 0 ? dbpManagerResult.rows[0].user_name : null;
+                    
+                    request.notifications.push({
+                        type: 'dbp_manager',
+                        email: dbpManagerEmail,
+                        name: dbpManagerName,
+                        status: 'notified'
+                    });
+                }
+            } else if (request.dbx_group_id) {
+                const groupQuery = `SELECT dbp_manager FROM dbx_groups WHERE id = $1`;
+                const groupResult = await pool.query(groupQuery, [request.dbx_group_id]);
+                if (groupResult.rows.length > 0 && groupResult.rows[0].dbp_manager) {
                     const dbpManagerEmail = groupResult.rows[0].dbp_manager;
                     const dbpManagerQuery = `SELECT user_name FROM users WHERE email = $1`;
                     const dbpManagerResult = await pool.query(dbpManagerQuery, [dbpManagerEmail]);
@@ -1564,7 +2146,6 @@ app.get('/api/requests/:id', async (req, res) => {
                 )];
                 
                 for (const businessOwnerEmail of uniqueBusinessOwners) {
-                    // ビジネスオーナーの名前を取得
                     const businessOwnerQuery = `SELECT user_name FROM users WHERE email = $1`;
                     const businessOwnerResult = await pool.query(businessOwnerQuery, [businessOwnerEmail]);
                     const businessOwnerName = businessOwnerResult.rows.length > 0 ? businessOwnerResult.rows[0].user_name : null;
@@ -1615,20 +2196,31 @@ app.get('/api/approvals/pending', async (req, res) => {
                 rh.status,
                 rh.requester,
                 rh.request_type,
-                g.group_name,
+                COALESCE(qsg.group_name, dbxg.group_name, rh.new_group_name) as group_name,
                 ra.approver_type,
                 ra.status as approval_status,
                 ra.approved_at,
                 ra.comment,
                 COALESCE(
-                    string_agg(DISTINCT d.dataset_name, ', ' ORDER BY d.dataset_name),
+                    string_agg(DISTINCT 
+                        CASE 
+                            WHEN d.dataset_name IS NOT NULL THEN d.dataset_name
+                            WHEN t.table_name IS NOT NULL THEN t.table_name
+                            ELSE ''
+                        END, ', ' ORDER BY 
+                        CASE 
+                            WHEN d.dataset_name IS NOT NULL THEN d.dataset_name
+                            WHEN t.table_name IS NOT NULL THEN t.table_name
+                            ELSE ''
+                        END),
                     ''
                 ) as datasets,
                 -- 承認可能かどうかを判定（申請タイプに応じて、pendingの場合のみ）
                 CASE 
                     WHEN ra.status != 'pending' THEN false
-                    -- メンバー追加・削除申請またはグループ作成・削除申請の場合
-                    WHEN rh.request_type IN ('add_members', 'create_group', 'remove_members', 'remove_group') THEN
+                    -- メンバー追加・削除申請またはグループ作成・削除申請の場合（QS/DBX共通）
+                    WHEN rh.request_type IN ('add_members', 'create_group', 'remove_members', 'remove_group',
+                                             'dbx_add_members', 'dbx_create_group', 'dbx_remove_members', 'dbx_remove_group') THEN
                         CASE 
                             WHEN ra.approver_type = 'group_owner' THEN true
                             WHEN ra.approver_type = 'data_manager' THEN (
@@ -1640,7 +2232,7 @@ app.get('/api/approvals/pending', async (req, res) => {
                             )
                             ELSE false
                         END
-                    -- データセットアクセス申請（追加・削除）の場合（グループオーナー → データマネージャー → アプリケーションオーナー）
+                    -- データセット/テーブルアクセス申請（追加・削除）の場合（グループオーナー → データマネージャー → アプリケーションオーナー）
                     ELSE
                         CASE 
                             WHEN ra.approver_type = 'group_owner' THEN true
@@ -1662,13 +2254,16 @@ app.get('/api/approvals/pending', async (req, res) => {
                         END
                 END as can_approve
             FROM request_history rh
-            LEFT JOIN qs_groups g ON rh.group_id = g.id
+            LEFT JOIN qs_groups qsg ON rh.group_id = qsg.id
+            LEFT JOIN dbx_groups dbxg ON rh.dbx_group_id = dbxg.id
             JOIN request_approvals ra ON rh.id = ra.request_id
             LEFT JOIN request_datasets rd ON rh.id = rd.request_id
             LEFT JOIN datasets d ON rd.dataset_id = d.id
+            LEFT JOIN request_dbx_tables rdt ON rh.id = rdt.request_id
+            LEFT JOIN dbx_tables t ON rdt.table_id = t.id
             WHERE ra.approver_email = $1
             ${statusFilter}
-            GROUP BY rh.id, rh.request_date, rh.status, rh.requester, rh.request_type, g.group_name, ra.approver_type, ra.status, ra.approved_at, ra.comment
+            GROUP BY rh.id, rh.request_date, rh.status, rh.requester, rh.request_type, qsg.group_name, dbxg.group_name, rh.new_group_name, ra.approver_type, ra.status, ra.approved_at, ra.comment
             ORDER BY rh.request_date DESC
         `;
         let result = await pool.query(query, [approverEmail]);
@@ -1793,20 +2388,21 @@ app.post('/api/approvals/:requestId/approve', async (req, res) => {
 
         // 申請タイプに応じた承認順序を設定
         let approvalOrder;
-        if (requestType === 'add_members') {
+        if (requestType === 'add_members' || requestType === 'dbx_add_members') {
             // メンバー追加申請: グループオーナー → データマネージャー
             approvalOrder = {
                 'group_owner': 1,
                 'data_manager': 2
             };
-        } else if (requestType === 'create_group' || requestType === 'remove_group') {
+        } else if (requestType === 'create_group' || requestType === 'remove_group' ||
+                   requestType === 'dbx_create_group' || requestType === 'dbx_remove_group') {
             // グループ作成・削除申請: グループオーナー → データマネージャー
             approvalOrder = {
                 'group_owner': 1,
                 'data_manager': 2
             };
-        } else if (requestType === 'remove_dataset_access') {
-            // データセットアクセス削除申請: グループオーナー → データマネージャー → アプリケーションオーナー
+        } else if (requestType === 'remove_dataset_access' || requestType === 'dbx_remove_table_access') {
+            // データセット/テーブルアクセス削除申請: グループオーナー → データマネージャー → アプリケーションオーナー
             // DBPマネージャーとビジネスオーナーは承認フローには含めない（通知のみ）
             approvalOrder = {
                 'group_owner': 1,
@@ -1814,7 +2410,7 @@ app.post('/api/approvals/:requestId/approve', async (req, res) => {
                 'app_owner': 3
             };
         } else {
-            // データセットアクセス申請: グループオーナー → データマネージャー → アプリケーションオーナー
+            // データセット/テーブルアクセス申請: グループオーナー → データマネージャー → アプリケーションオーナー
             // DBPマネージャーとビジネスオーナーは承認フローには含めない（通知のみ）
             approvalOrder = {
                 'group_owner': 1,
@@ -1933,20 +2529,21 @@ app.post('/api/approvals/:requestId/reject', async (req, res) => {
 
         // 申請タイプに応じた承認順序を設定（却下も同じ順序制約を適用）
         let approvalOrder;
-        if (requestType === 'add_members') {
+        if (requestType === 'add_members' || requestType === 'dbx_add_members') {
             // メンバー追加申請: グループオーナー → データマネージャー
             approvalOrder = {
                 'group_owner': 1,
                 'data_manager': 2
             };
-        } else if (requestType === 'create_group' || requestType === 'remove_group') {
+        } else if (requestType === 'create_group' || requestType === 'remove_group' ||
+                   requestType === 'dbx_create_group' || requestType === 'dbx_remove_group') {
             // グループ作成・削除申請: グループオーナー → データマネージャー
             approvalOrder = {
                 'group_owner': 1,
                 'data_manager': 2
             };
-        } else if (requestType === 'remove_dataset_access') {
-            // データセットアクセス削除申請: グループオーナー → データマネージャー → アプリケーションオーナー
+        } else if (requestType === 'remove_dataset_access' || requestType === 'dbx_remove_table_access') {
+            // データセット/テーブルアクセス削除申請: グループオーナー → データマネージャー → アプリケーションオーナー
             // DBPマネージャーとビジネスオーナーは承認フローには含めない（通知のみ）
             approvalOrder = {
                 'group_owner': 1,
@@ -1954,7 +2551,7 @@ app.post('/api/approvals/:requestId/reject', async (req, res) => {
                 'app_owner': 3
             };
         } else {
-            // データセットアクセス申請: グループオーナー → データマネージャー → アプリケーションオーナー
+            // データセット/テーブルアクセス申請: グループオーナー → データマネージャー → アプリケーションオーナー
             // DBPマネージャーとビジネスオーナーは承認フローには含めない（通知のみ）
             approvalOrder = {
                 'group_owner': 1,
@@ -2405,13 +3002,26 @@ app.post('/api/requests/add-members', async (req, res) => {
             }
         }
 
+        // DBX用のrequestTypeかどうかを判定
+        const isDbx = finalRequestType.startsWith('dbx_');
+        
         // グループ情報を取得
-        const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
-        const groupResult = await pool.query(groupQuery, [groupId]);
-        if (groupResult.rows.length === 0) {
-            return res.status(404).json({ error: 'グループが見つかりません' });
+        let group;
+        if (isDbx) {
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM dbx_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'DBXグループが見つかりません' });
+            }
+            group = groupResult.rows[0];
+        } else {
+            const groupQuery = `SELECT group_name, group_owner, dbp_manager FROM qs_groups WHERE id = $1`;
+            const groupResult = await pool.query(groupQuery, [groupId]);
+            if (groupResult.rows.length === 0) {
+                return res.status(404).json({ error: 'QSグループが見つかりません' });
+            }
+            group = groupResult.rows[0];
         }
-        const group = groupResult.rows[0];
 
         // 追加するメンバーの情報を取得
         const membersQuery = `
@@ -2455,17 +3065,31 @@ app.post('/api/requests/add-members', async (req, res) => {
         let savedRequestId;
         if (requestId) {
             // 既存のドラフトを申請に変更
-            const updateRequestQuery = `
-                UPDATE request_history 
-                SET group_id = $1, requester = $2, status = 'requested', jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
-                WHERE id = $6 AND status = 'draft'
-                RETURNING id
-            `;
-            const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
-            if (updateResult.rows.length === 0) {
-                return res.status(404).json({ error: 'ドラフトが見つかりません' });
+            if (isDbx) {
+                const updateRequestQuery = `
+                    UPDATE request_history 
+                    SET dbx_group_id = $1, requester = $2, status = 'requested', jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
+                    WHERE id = $6 AND status = 'draft'
+                    RETURNING id
+                `;
+                const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
+                if (updateResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'ドラフトが見つかりません' });
+                }
+                savedRequestId = updateResult.rows[0].id;
+            } else {
+                const updateRequestQuery = `
+                    UPDATE request_history 
+                    SET group_id = $1, requester = $2, status = 'requested', jira_text = $3, request_reason = $4, request_type = $5, request_date = NOW()
+                    WHERE id = $6 AND status = 'draft'
+                    RETURNING id
+                `;
+                const updateResult = await pool.query(updateRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType, requestId]);
+                if (updateResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'ドラフトが見つかりません' });
+                }
+                savedRequestId = updateResult.rows[0].id;
             }
-            savedRequestId = updateResult.rows[0].id;
             
             // 既存のメンバー関連を削除
             await pool.query('DELETE FROM request_members WHERE request_id = $1', [savedRequestId]);
@@ -2474,13 +3098,23 @@ app.post('/api/requests/add-members', async (req, res) => {
             await pool.query('DELETE FROM request_approvals WHERE request_id = $1', [savedRequestId]);
         } else {
             // 新しい申請を作成
-            const insertRequestQuery = `
-                INSERT INTO request_history (group_id, requester, status, jira_text, request_reason, request_type)
-                VALUES ($1, $2, 'requested', $3, $4, $5)
-                RETURNING id
-            `;
-            const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
-            savedRequestId = requestResult.rows[0].id;
+            if (isDbx) {
+                const insertRequestQuery = `
+                    INSERT INTO request_history (dbx_group_id, requester, status, jira_text, request_reason, request_type)
+                    VALUES ($1, $2, 'requested', $3, $4, $5)
+                    RETURNING id
+                `;
+                const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
+                savedRequestId = requestResult.rows[0].id;
+            } else {
+                const insertRequestQuery = `
+                    INSERT INTO request_history (group_id, requester, status, jira_text, request_reason, request_type)
+                    VALUES ($1, $2, 'requested', $3, $4, $5)
+                    RETURNING id
+                `;
+                const requestResult = await pool.query(insertRequestQuery, [groupId, requester, jiraText, requestReason, finalRequestType]);
+                savedRequestId = requestResult.rows[0].id;
+            }
         }
 
         // 申請とメンバーの関連を保存
@@ -2496,7 +3130,7 @@ app.post('/api/requests/add-members', async (req, res) => {
         // グループオーナー（最初）
         if (group.group_owner) {
             approvalRecords.push({
-                request_id: requestId,
+                request_id: savedRequestId,
                 approver_type: 'group_owner',
                 approver_email: group.group_owner,
                 status: 'pending'

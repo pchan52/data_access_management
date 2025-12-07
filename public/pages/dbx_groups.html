@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DBXグループ一覧</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .layout {
+      display: flex;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    .list-section {
+      width: 35%;
+      min-width: 300px;
+      max-width: 400px;
+    }
+    #groupList {
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .group-item {
+      overflow: hidden;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    .group-item-name {
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .detail-section {
+      flex: 1;
+      min-width: 0;
+    }
+    .detail-content {
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+    }
+    .detail-content code {
+      word-break: break-all;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .group-item {
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      background: var(--background);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .group-item:hover {
+      background: var(--surface);
+      border-color: var(--primary-color);
+      transform: translateX(4px);
+    }
+    .group-item.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    .group-item.selected:hover {
+      background: var(--primary-hover);
+    }
+    .group-item-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .detail-content {
+      background: var(--surface);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+    .detail-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+    }
+    .detail-content h3:first-child {
+      margin-top: 0;
+    }
+    .detail-content p {
+      margin-bottom: 1rem;
+      line-height: 1.8;
+    }
+    .detail-content strong {
+      color: var(--text-primary);
+      font-weight: 600;
+      display: inline-block;
+      min-width: 140px;
+    }
+    .detail-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+      background: var(--surface);
+    }
+    .detail-content th,
+    .detail-content td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .detail-content th {
+      background: var(--background);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .detail-content tr:hover {
+      background: var(--background);
+    }
+    .detail-content tbody tr[onclick] {
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .detail-content tbody tr[onclick]:hover {
+      background: var(--primary-color);
+      color: white;
+    }
+    .detail-content tbody tr[onclick]:hover .status-badge {
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+    .detail-content ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .detail-content li {
+      margin-bottom: 0.5rem;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .status-approved {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    .status-requested {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #f59e0b;
+    }
+    .empty-message {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+    .search-box {
+      margin-bottom: 1.5rem;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .search-box input::placeholder {
+      color: var(--text-secondary);
+    }
+    .result-count {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      .layout {
+        flex-direction: column;
+      }
+      .list-section {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>DBXグループ一覧</h1>
+    <a href="/pages/top.html" class="back-link">← トップへ戻る</a>
+
+    <div class="layout">
+      <section class="list-section">
+        <h2>グループ</h2>
+        <div class="search-box">
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="グループ名で検索..."
+            autocomplete="off"
+          />
+          <div class="result-count" id="resultCount"></div>
+        </div>
+        <div id="groupList" class="empty-message">読み込み中...</div>
+      </section>
+
+      <section class="detail-section">
+        <h2>詳細</h2>
+        <div id="detailArea" class="detail-content">
+          <p class="text-muted">グループをクリックすると詳細が表示されます。</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    let allGroups = [];
+    let filteredGroups = [];
+
+    async function loadGroups() {
+      try {
+        const res = await fetch(`${API_BASE}/dbx-groups`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        allGroups = await res.json();
+        filteredGroups = allGroups;
+        renderGroups();
+        updateResultCount();
+      } catch (error) {
+        console.error('Error loading groups:', error);
+        const list = document.getElementById('groupList');
+        list.innerHTML = '<p class="empty-message">データの読み込みに失敗しました。サーバーが起動しているか確認してください。</p>';
+      }
+    }
+
+    function filterGroups() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+      
+      if (searchTerm === '') {
+        filteredGroups = allGroups;
+      } else {
+        filteredGroups = allGroups.filter(group => {
+          // グループ名で検索
+          return group.group_name?.toLowerCase().includes(searchTerm);
+        });
+      }
+      
+      renderGroups();
+      updateResultCount();
+    }
+
+    function renderGroups() {
+      const list = document.getElementById('groupList');
+      list.innerHTML = '';
+
+      if (filteredGroups.length === 0) {
+        list.innerHTML = '<p class="empty-message">該当するグループが見つかりませんでした。</p>';
+        return;
+      }
+
+      filteredGroups.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'group-item';
+        div.innerHTML = `
+          <div class="group-item-name">${escapeHtml(g.group_name || '名称不明')}</div>
+        `;
+        div.dataset.id = g.id;
+        div.addEventListener('click', () => selectGroup(div, g.id));
+        list.appendChild(div);
+      });
+    }
+
+    function updateResultCount() {
+      const countElement = document.getElementById('resultCount');
+      if (allGroups.length === 0) {
+        countElement.textContent = '';
+        return;
+      }
+      
+      if (filteredGroups.length === allGroups.length) {
+        countElement.textContent = `全${allGroups.length}件`;
+      } else {
+        countElement.textContent = `${filteredGroups.length}件 / 全${allGroups.length}件`;
+      }
+    }
+
+    async function selectGroup(element, id) {
+      document.querySelectorAll('.group-item').forEach(el => el.classList.remove('selected'));
+      element.classList.add('selected');
+
+      try {
+        const res = await fetch(`${API_BASE}/dbx-groups/${id}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const g = await res.json();
+
+        const detail = document.getElementById('detailArea');
+        detail.innerHTML = `
+          <p><strong>グループ名:</strong> ${escapeHtml(g.group_name || '名称不明')}</p>
+          <p><strong>グループオーナー:</strong> ${escapeHtml(g.group_owner || '(未登録)')}</p>
+          <p><strong>DBPマネージャー:</strong> ${escapeHtml(g.dbp_manager || '(未登録)')}</p>
+
+          <h3>所属ユーザー</h3>
+          ${renderUsers(g.users)}
+
+          <h3>紐づくテーブル</h3>
+          ${renderTables(g.tables)}
+
+          <h3>アクセス申請履歴</h3>
+          ${renderHistory(g.request_history)}
+        `;
+      } catch (error) {
+        console.error('Error loading group details:', error);
+        document.getElementById('detailArea').innerHTML = '<p class="text-muted">詳細の取得に失敗しました。</p>';
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderUsers(users) {
+      if (!users || users.length === 0) {
+        return '<p class="text-muted">所属ユーザーは登録されていません。</p>';
+      }
+      let html = '<table><thead><tr><th>ユーザーID</th><th>ユーザー名</th><th>メールアドレス</th><th>QSユーザー名</th></tr></thead><tbody>';
+      for (const u of users) {
+        html += `<tr>
+          <td><code>${escapeHtml(u.user_id || '')}</code></td>
+          <td>${escapeHtml(u.user_name || '')}</td>
+          <td>${escapeHtml(u.email || '')}</td>
+          <td><code>${escapeHtml(u.qs_username || '')}</code></td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function renderTables(tables) {
+      if (!tables || tables.length === 0) {
+        return '<p class="text-muted">紐づくテーブルはありません。</p>';
+      }
+      let html = '<ul>';
+      for (const t of tables) {
+        html += `<li>${escapeHtml(t.table_name || '名称不明')} <code>${escapeHtml(t.table_id || 'ID不明')}</code></li>`;
+      }
+      html += '</ul>';
+      return html;
+    }
+
+    function renderHistory(history) {
+      if (!history || history.length === 0) {
+        return '<p class="text-muted">申請履歴はありません。</p>';
+      }
+      let html = '<table><thead><tr><th>申請日時</th><th>申請者</th><th>ステータス</th><th>テーブル</th></tr></thead><tbody>';
+      for (const h of history) {
+        const statusClass = h.status === 'approved' ? 'status-approved' : 'status-requested';
+        const statusText = h.status === 'approved' ? '承認済み' : '申請中';
+        html += `<tr style="cursor: pointer;" onclick="window.location.href='/pages/request_detail.html?id=${h.id}'" title="クリックして詳細を表示">
+          <td>${new Date(h.request_date).toLocaleString('ja-JP')}</td>
+          <td>${escapeHtml(h.requester || '')}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>${escapeHtml(h.tables || '')}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      return html;
+    }
+
+    // 検索入力欄のイベントリスナー
+    document.getElementById('searchInput').addEventListener('input', filterGroups);
+
+    // 初期読み込み
+    loadGroups();
+  </script>
+</body>
+</html>

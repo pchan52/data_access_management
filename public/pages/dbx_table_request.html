@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DBXテーブルアクセス申請</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="container">
+  <h1>DBXテーブルアクセス申請</h1>
+    <a href="/pages/top.html" class="back-link">← トップへ戻る</a>
+
+  <section>
+    <h2>申請モードを選択</h2>
+    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 2px solid var(--border-color); border-radius: var(--radius); cursor: pointer; background: var(--surface); transition: all 0.2s;">
+        <input type="radio" name="requestMode" value="add" checked style="cursor: pointer;">
+        <span>アクセス追加</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 2px solid var(--border-color); border-radius: var(--radius); cursor: pointer; background: var(--surface); transition: all 0.2s;">
+        <input type="radio" name="requestMode" value="remove" style="cursor: pointer;">
+        <span>アクセス削除</span>
+      </label>
+    </div>
+    <p class="text-muted" id="modeDescription">テーブルへのアクセス権限を追加する申請を行います。</p>
+  </section>
+
+  <section>
+    <h2><span class="step-number">1</span>申請者を選択</h2>
+    <div style="position: relative;">
+      <input 
+        type="text" 
+        id="userSearchInput" 
+        placeholder="ユーザー名、ID、メールアドレスで検索..."
+        autocomplete="off"
+        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem;"
+      />
+      <div id="userDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 2px solid var(--border-color); border-radius: var(--radius); margin-top: 0.25rem; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-lg);">
+        <div id="userList" style="padding: 0.5rem;"></div>
+      </div>
+    </div>
+    <input type="hidden" id="userSelect" value="" />
+    <div id="selectedUser" style="margin-top: 0.75rem; padding: 0.75rem; background: var(--background); border-radius: var(--radius); display: none;">
+      <span style="font-weight: 600;">選択中: </span>
+      <span id="selectedUserName"></span>
+      <button type="button" id="clearUserBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; background: var(--secondary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;">クリア</button>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step-number">2</span>自分の DBX グループを選択</h2>
+    <div style="position: relative;">
+      <input 
+        type="text" 
+        id="groupSearchInput" 
+        placeholder="グループ名で検索..."
+        autocomplete="off"
+        disabled
+        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; opacity: 0.5;"
+      />
+      <div id="groupDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 2px solid var(--border-color); border-radius: var(--radius); margin-top: 0.25rem; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-lg);">
+        <div id="groupList" style="padding: 0.5rem;"></div>
+      </div>
+    </div>
+    <input type="hidden" id="groupSelect" value="" />
+    <div id="selectedGroup" style="margin-top: 0.75rem; padding: 0.75rem; background: var(--background); border-radius: var(--radius); display: none;">
+      <span style="font-weight: 600;">選択中: </span>
+      <span id="selectedGroupName"></span>
+      <button type="button" id="clearGroupBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; background: var(--secondary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;">クリア</button>
+    </div>
+    <p class="text-muted" style="margin-top: 0.5rem;">まず、申請者を選択してください。</p>
+  </section>
+
+  <section>
+    <h2><span class="step-number">3</span><span id="datasetSectionTitle">申請したいテーブルを選択</span></h2>
+    <p class="text-muted" id="datasetSectionDescription">すでに申請済みのテーブルはグレーアウトされます。</p>
+    <div style="margin-bottom: 1rem;">
+      <input 
+        type="text" 
+        id="tableSearchInput" 
+        placeholder="カタログ名・スキーマ名・テーブル名で検索..."
+        autocomplete="off"
+        disabled
+        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; opacity: 0.5;"
+      />
+    </div>
+    <div id="datasetList" style="max-height: 400px; overflow-y: auto; padding: 1rem; background: var(--background); border-radius: var(--radius); border: 1px solid var(--border-color);">
+      <p class="text-muted">まず、DBXグループを選択してください。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step-number">4</span>申請理由を記入 <span style="color: #dc3545;">*</span></h2>
+    <textarea 
+      id="requestReason" 
+      rows="4" 
+      placeholder="申請理由を記入してください（必須）"
+      required
+      style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; font-family: inherit; resize: vertical;"
+    ></textarea>
+  </section>
+
+  <section>
+    <div class="button-group">
+    <button id="previewBtn">作成（JIRA用テキスト生成）</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>JIRA 用テキスト</h2>
+    <textarea id="jiraText" rows="18" cols="80"></textarea>
+  </section>
+
+  <section>
+    <div class="button-group" style="display: flex; gap: 1rem;">
+      <button id="saveDraftBtn" class="button-secondary" style="background: #6c757d;">ドラフト保存</button>
+      <button id="submitBtn" class="button-secondary" style="background: var(--primary-color);">申請を送信</button>
+    </div>
+  </section>
+
+  <script>
+    const API_BASE = '/api';
+    let allUsers = [];
+    let filteredUsers = [];
+    let userGroups = [];
+    let filteredUserGroups = [];
+    let selectedUserId = null;
+    let requestMode = 'add'; // 'add' or 'remove'
+
+    // モード切り替えの処理
+    function updateModeDisplay() {
+      const mode = document.querySelector('input[name="requestMode"]:checked').value;
+      requestMode = mode;
+      
+      const modeDescription = document.getElementById('modeDescription');
+      const datasetSectionTitle = document.getElementById('datasetSectionTitle');
+      const datasetSectionDescription = document.getElementById('datasetSectionDescription');
+      
+      if (mode === 'remove') {
+        modeDescription.textContent = 'テーブルへのアクセス権限を削除する申請を行います。';
+        datasetSectionTitle.textContent = '削除したいテーブルを選択';
+        datasetSectionDescription.textContent = '現在アクセス権限があるテーブルが表示されます。';
+      } else {
+        modeDescription.textContent = 'テーブルへのアクセス権限を追加する申請を行います。';
+        datasetSectionTitle.textContent = '申請したいテーブルを選択';
+        datasetSectionDescription.textContent = 'すでに申請済みのテーブルはグレーアウトされます。';
+      }
+      
+      // グループが選択されている場合はデータセットリストを再読み込み
+      const groupId = selectedGroupId || document.getElementById('groupSelect').value;
+      if (groupId) {
+        loadDatasetsForGroup(groupId);
+      }
+    }
+
+    // ログインチェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!user) {
+        alert('ログインが必要です');
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    // ログインユーザーをデフォルトで選択
+    function selectLoggedInUser() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (user && user.id) {
+        // ユーザーリストからログインユーザーを検索
+        const loggedInUser = allUsers.find(u => u.id === user.id);
+        if (loggedInUser) {
+          selectUser(loggedInUser.id, loggedInUser.user_name);
+        }
+      }
+    }
+
+    // ユーザー関連の関数
+    async function loadUsers() {
+      try {
+        const res = await fetch(`${API_BASE}/users`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        allUsers = await res.json();
+        filteredUsers = allUsers;
+        renderUserList();
+        
+        // ログインユーザーをデフォルトで選択
+        selectLoggedInUser();
+      } catch (error) {
+        console.error('Error loading users:', error);
+        alert('ユーザーの読み込みに失敗しました。サーバーが起動しているか確認してください。');
+      }
+    }
+
+    function filterUsers() {
+      const searchTerm = document.getElementById('userSearchInput').value.toLowerCase().trim();
+      
+      if (searchTerm === '') {
+        filteredUsers = allUsers;
+      } else {
+        filteredUsers = allUsers.filter(user => {
+          const nameMatch = user.user_name?.toLowerCase().includes(searchTerm);
+          const idMatch = user.user_id?.toLowerCase().includes(searchTerm);
+          const emailMatch = user.email?.toLowerCase().includes(searchTerm);
+          const qsUsernameMatch = user.qs_username?.toLowerCase().includes(searchTerm);
+          return nameMatch || idMatch || emailMatch || qsUsernameMatch;
+        });
+      }
+      
+      renderUserList();
+    }
+
+    function renderUserList() {
+      const list = document.getElementById('userList');
+      list.innerHTML = '';
+
+      if (filteredUsers.length === 0) {
+        list.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">該当するユーザーが見つかりませんでした。</div>';
+        return;
+      }
+
+      filteredUsers.forEach(u => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 0.75rem 1rem; cursor: pointer; transition: background-color 0.2s ease; border-bottom: 1px solid var(--border-color);';
+        item.innerHTML = `
+          <div style="font-weight: 600;">${escapeHtml(u.user_name || '名称不明')}</div>
+          <div style="font-size: 0.875rem; color: var(--text-secondary);">${escapeHtml(u.user_id || 'ID不明')}</div>
+        `;
+        item.addEventListener('mouseenter', () => {
+          item.style.backgroundColor = 'var(--background)';
+        });
+        item.addEventListener('mouseleave', () => {
+          item.style.backgroundColor = 'transparent';
+        });
+        item.addEventListener('click', () => {
+          selectUser(u.id, u.user_name);
+        });
+        list.appendChild(item);
+      });
+    }
+
+    async function selectUser(userId, userName) {
+      selectedUserId = userId;
+      document.getElementById('userSelect').value = userId;
+      document.getElementById('selectedUserName').textContent = userName;
+      document.getElementById('selectedUser').style.display = 'block';
+      document.getElementById('userSearchInput').value = '';
+      document.getElementById('userDropdown').style.display = 'none';
+      
+      // ユーザーが所属するグループを読み込む
+      await loadUserGroups(userId);
+    }
+
+    function clearUserSelection() {
+      selectedUserId = null;
+      document.getElementById('userSelect').value = '';
+      document.getElementById('selectedUser').style.display = 'none';
+      document.getElementById('userSearchInput').value = '';
+      clearGroupSelection();
+    }
+
+    async function loadUserGroups(userId) {
+      try {
+        const res = await fetch(`${API_BASE}/users/${userId}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const user = await res.json();
+        const allGroups = user.groups || [];
+        // DBXグループのみをフィルタリング（グループ名に「（DBX）」が含まれているもの）
+        userGroups = allGroups.filter(g => g.group_name && g.group_name.includes('（DBX）'));
+        filteredUserGroups = userGroups;
+        
+        // グループ選択を有効化
+        const groupSearchInput = document.getElementById('groupSearchInput');
+        groupSearchInput.disabled = false;
+        groupSearchInput.style.opacity = '1';
+        groupSearchInput.placeholder = userGroups.length > 0 ? 'グループ名で検索...' : '所属DBXグループがありません';
+        
+        renderGroupList();
+        
+        // 所属グループが1つだけの場合は自動選択
+        if (userGroups.length === 1) {
+          const group = userGroups[0];
+          selectGroup(group.id, group.group_name);
+        }
+      } catch (error) {
+        console.error('Error loading user groups:', error);
+        alert('ユーザーの所属グループの読み込みに失敗しました。');
+      }
+    }
+
+    // グループ関連の関数
+    function filterGroups() {
+      const searchTerm = document.getElementById('groupSearchInput').value.toLowerCase().trim();
+      
+      if (searchTerm === '') {
+        filteredUserGroups = userGroups;
+      } else {
+        filteredUserGroups = userGroups.filter(group => {
+          return group.group_name?.toLowerCase().includes(searchTerm);
+        });
+      }
+      
+      renderGroupList();
+    }
+
+    function renderGroupList() {
+      const list = document.getElementById('groupList');
+      list.innerHTML = '';
+
+      if (filteredUserGroups.length === 0) {
+        list.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">該当するグループが見つかりませんでした。</div>';
+        return;
+      }
+
+      filteredUserGroups.forEach(g => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 0.75rem 1rem; cursor: pointer; transition: background-color 0.2s ease; border-bottom: 1px solid var(--border-color);';
+        item.textContent = g.group_name;
+        item.addEventListener('mouseenter', () => {
+          item.style.backgroundColor = 'var(--background)';
+        });
+        item.addEventListener('mouseleave', () => {
+          item.style.backgroundColor = 'transparent';
+        });
+        item.addEventListener('click', () => {
+          selectGroup(g.id, g.group_name);
+        });
+        list.appendChild(item);
+      });
+    }
+
+    function selectGroup(groupId, groupName) {
+      selectedGroupId = groupId;
+      document.getElementById('groupSelect').value = groupId;
+      document.getElementById('selectedGroupName').textContent = groupName;
+      document.getElementById('selectedGroup').style.display = 'block';
+      document.getElementById('groupSearchInput').value = '';
+      document.getElementById('groupDropdown').style.display = 'none';
+      
+      // データセット一覧を読み込む
+      loadDatasetsForGroup(groupId);
+    }
+
+    function clearGroupSelection() {
+      selectedGroupId = null;
+      document.getElementById('groupSelect').value = '';
+      document.getElementById('selectedGroup').style.display = 'none';
+      document.getElementById('groupSearchInput').value = '';
+      const groupSearchInput = document.getElementById('groupSearchInput');
+      groupSearchInput.disabled = true;
+      groupSearchInput.style.opacity = '0.5';
+      document.getElementById('datasetList').innerHTML = '<p class="text-muted">まず、DBXグループを選択してください。</p>';
+    }
+
+    let allTables = []; // 全テーブルデータを保持
+
+    async function loadDatasetsForGroup(groupId) {
+      try {
+        // DBXグループ専用のエンドポイントを使用
+        const endpoint = requestMode === 'remove' 
+          ? `${API_BASE}/dbx-groups/${groupId}/tables-with-access`
+          : `${API_BASE}/dbx-groups/${groupId}/tables-for-request`;
+        
+        const res = await fetch(endpoint);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const datasets = await res.json();
+        allTables = datasets; // 全テーブルデータを保存
+        
+        // 検索入力欄を有効化
+        const searchInput = document.getElementById('tableSearchInput');
+        searchInput.disabled = false;
+        searchInput.style.opacity = '1';
+        
+        renderTableList(datasets);
+      } catch (error) {
+        console.error('Error loading datasets:', error);
+        const container = document.getElementById('datasetList');
+        container.innerHTML = '<p class="text-muted">テーブルの読み込みに失敗しました。</p>';
+      }
+    }
+
+    function renderTableList(tables) {
+      const container = document.getElementById('datasetList');
+      container.innerHTML = '';
+
+      if (tables.length === 0) {
+        const message = requestMode === 'remove' 
+          ? 'アクセス権限があるテーブルが見つかりませんでした。'
+          : 'テーブルが見つかりませんでした。';
+        container.innerHTML = `<p class="text-muted">${message}</p>`;
+        return;
+      }
+
+      tables.forEach(d => {
+        // 削除モードの場合は、アクセス権限があるテーブルのみ表示
+        // 追加モードの場合は、既に申請済みのテーブルは無効化
+        const disabled = requestMode === 'add' && d.already_requested ? 'disabled checked' : '';
+        const label = document.createElement('label');
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.marginBottom = '0.75rem';
+        label.style.padding = '0.5rem';
+        label.style.borderRadius = 'var(--radius)';
+        label.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        label.style.opacity = disabled ? '0.5' : '1';
+        label.style.transition = 'background-color 0.2s ease';
+        
+        if (!disabled) {
+          label.addEventListener('mouseenter', () => {
+            label.style.backgroundColor = 'var(--background)';
+          });
+          label.addEventListener('mouseleave', () => {
+            label.style.backgroundColor = 'transparent';
+          });
+        }
+
+        // DBXテーブルの情報を表示（catalog.schema.table形式）
+        // APIから返されるデータ: table_name, table_id, catalog_name, schema_name
+        const tableName = d.table_name || '名称不明';
+        const tableId = d.table_id || (d.catalog_name && d.schema_name && d.table_name 
+          ? `${d.catalog_name}.${d.schema_name}.${d.table_name}` 
+          : 'ID不明');
+        
+        label.innerHTML = `
+          <input type="checkbox"
+                 value="${d.id}"
+                 ${disabled}
+                 style="margin-right: 0.5rem;">
+            <span style="flex: 1;">
+              <strong>${escapeHtml(tableName)}</strong>
+              <code style="margin-left: 0.5rem; font-size: 0.875rem; color: var(--primary-color);">${escapeHtml(tableId)}</code>
+            </span>
+            ${requestMode === 'add' && d.already_requested ? '<span class="badge badge-warning">申請済み</span>' : ''}
+            ${requestMode === 'remove' && d.has_access ? '<span class="badge badge-success">アクセス権あり</span>' : ''}
+        `;
+        container.appendChild(label);
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function previewRequest() {
+      const userId = document.getElementById('userSelect').value;
+      const groupId = document.getElementById('groupSelect').value;
+      
+      if (!userId) {
+        alert('申請者を選択してください');
+        return;
+      }
+      if (!groupId) {
+        alert('DBXグループを選択してください');
+        return;
+      }
+      
+      // 選択されたユーザー情報を取得
+      const userRes = await fetch(`${API_BASE}/users/${userId}`);
+      const user = await userRes.json();
+      const requester = user.user_name || user.user_id || '';
+      
+      const checked = document.querySelectorAll('#datasetList input[type=checkbox]:checked:not(:disabled)');
+      const datasetIds = Array.from(checked).map(c => Number(c.value));
+
+      if (datasetIds.length === 0) {
+        const message = requestMode === 'remove' 
+          ? '削除するテーブルを 1 つ以上選択してください'
+          : '新規に申請するテーブルを 1 つ以上選択してください';
+        alert(message);
+        return;
+      }
+
+      const requestType = requestMode === 'remove' ? 'dbx_remove_table_access' : 'dbx_table_access';
+      const res = await fetch(`${API_BASE}/requests/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: Number(userId), groupId: Number(groupId), datasetIds, requestType })
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      document.getElementById('jiraText').value = data.jiraText;
+    }
+
+    let currentDraftId = null; // 現在編集中のドラフトID
+    let selectedGroupId = null; // 選択されたグループID
+
+    async function saveDraft() {
+      const userId = selectedUserId || document.getElementById('userSelect').value;
+      if (!userId) {
+        alert('申請者を選択してください');
+        return;
+      }
+      const groupId = selectedGroupId || document.getElementById('groupSelect').value;
+      if (!groupId) {
+        alert('グループを選択してください');
+        return;
+      }
+      
+      const checked = document.querySelectorAll('#datasetList input[type=checkbox]:checked:not(:disabled)');
+      const datasetIds = Array.from(checked).map(c => Number(c.value));
+
+      if (datasetIds.length === 0) {
+        const message = requestMode === 'remove' 
+          ? '削除するテーブルを 1 つ以上選択してください'
+          : 'テーブルを 1 つ以上選択してください';
+        alert(message);
+        return;
+      }
+
+      const requestReason = document.getElementById('requestReason').value.trim();
+      
+      if (!requestReason) {
+        alert('申請理由を入力してください');
+        document.getElementById('requestReason').focus();
+        return;
+      }
+      
+      try {
+        const requestType = requestMode === 'remove' ? 'dbx_remove_table_access' : 'dbx_table_access';
+        const res = await fetch(`${API_BASE}/requests/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: Number(userId), 
+            groupId: Number(groupId), 
+            datasetIds, 
+            requestReason: requestReason,
+            requestId: currentDraftId,
+            requestType: requestType
+          })
+        });
+        
+        if (!res.ok) {
+          const error = await res.json();
+          alert(error.error || 'ドラフトの保存に失敗しました');
+          return;
+        }
+        
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        
+        currentDraftId = data.requestId;
+        document.getElementById('jiraText').value = data.jiraText;
+        
+        // 保存成功のポップアップを表示してからドラフト一覧ページに遷移
+        if (confirm('ドラフトを保存しました。\nドラフト一覧ページに移動しますか？')) {
+          window.location.href = '/pages/drafts.html';
+        }
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        alert('ドラフトの保存に失敗しました: ' + error.message);
+      }
+    }
+
+    async function submitRequest() {
+      const userId = selectedUserId || document.getElementById('userSelect').value;
+      if (!userId) {
+        alert('申請者を選択してください');
+        return;
+      }
+      const groupId = selectedGroupId || document.getElementById('groupSelect').value;
+      if (!groupId) {
+        alert('グループを選択してください');
+        return;
+      }
+      
+      const checked = document.querySelectorAll('#datasetList input[type=checkbox]:checked:not(:disabled)');
+      const datasetIds = Array.from(checked).map(c => Number(c.value));
+
+      if (datasetIds.length === 0) {
+        const message = requestMode === 'remove' 
+          ? '削除するテーブルを 1 つ以上選択してください'
+          : '新規に申請するテーブルを 1 つ以上選択してください';
+        alert(message);
+        return;
+      }
+
+      const requestReason = document.getElementById('requestReason').value.trim();
+      
+      if (!requestReason) {
+        alert('申請理由を入力してください');
+        document.getElementById('requestReason').focus();
+        return;
+      }
+      
+      if (!confirm('申請を送信しますか？送信後は承認プロセスが開始されます。')) {
+        return;
+      }
+      
+      try {
+        const requestType = requestMode === 'remove' ? 'dbx_remove_table_access' : 'dbx_table_access';
+        const res = await fetch(`${API_BASE}/requests/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: Number(userId), 
+            groupId: Number(groupId), 
+            datasetIds, 
+            requestReason: requestReason,
+            requestId: currentDraftId,
+            requestType: requestType
+          })
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      document.getElementById('jiraText').value = data.jiraText;
+        alert(data.message || '申請を送信しました');
+        currentDraftId = null; // 送信後はドラフトIDをクリア
+
+      // 申請済み状態を反映するため、一覧を再読込
+      await loadDatasetsForGroup(groupId);
+      } catch (error) {
+        console.error('Error submitting request:', error);
+        alert('申請の送信に失敗しました');
+      }
+    }
+
+    // ユーザー検索入力欄のイベントリスナー
+    const userSearchInput = document.getElementById('userSearchInput');
+    const userDropdown = document.getElementById('userDropdown');
+    
+    userSearchInput.addEventListener('input', () => {
+      filterUsers();
+      userDropdown.style.display = 'block';
+    });
+
+    userSearchInput.addEventListener('focus', () => {
+      if (filteredUsers.length > 0) {
+        userDropdown.style.display = 'block';
+      }
+    });
+
+    // グループ検索入力欄のイベントリスナー
+    const groupSearchInput = document.getElementById('groupSearchInput');
+    const groupDropdown = document.getElementById('groupDropdown');
+    
+    groupSearchInput.addEventListener('input', () => {
+      filterGroups();
+      groupDropdown.style.display = 'block';
+    });
+
+    groupSearchInput.addEventListener('focus', () => {
+      if (filteredUserGroups.length > 0) {
+        groupDropdown.style.display = 'block';
+      }
+    });
+
+    // テーブル検索入力欄のイベントリスナー
+    const tableSearchInput = document.getElementById('tableSearchInput');
+    tableSearchInput.addEventListener('input', () => {
+      filterTables();
+    });
+
+    // テーブル検索関数
+    function filterTables() {
+      const searchTerm = tableSearchInput.value.toLowerCase().trim();
+      if (!searchTerm) {
+        renderTableList(allTables);
+        return;
+      }
+      
+      const filtered = allTables.filter(table => {
+        // カタログ名、スキーマ名、テーブル名、table_idで検索
+        const catalogName = (table.catalog_name || '').toLowerCase();
+        const schemaName = (table.schema_name || '').toLowerCase();
+        const tableName = (table.table_name || '').toLowerCase();
+        const tableId = (table.table_id || '').toLowerCase();
+        const fullName = `${catalogName}.${schemaName}.${tableName}`;
+        
+        return catalogName.includes(searchTerm) || 
+               schemaName.includes(searchTerm) || 
+               tableName.includes(searchTerm) || 
+               tableId.includes(searchTerm) ||
+               fullName.includes(searchTerm);
+      });
+      
+      renderTableList(filtered);
+    }
+
+    // ドキュメントクリックでドロップダウンを閉じる
+    document.addEventListener('click', (e) => {
+      if (!userSearchInput.contains(e.target) && !userDropdown.contains(e.target)) {
+        userDropdown.style.display = 'none';
+      }
+      if (!groupSearchInput.contains(e.target) && !groupDropdown.contains(e.target)) {
+        groupDropdown.style.display = 'none';
+      }
+    });
+
+    // クリアボタン
+    document.getElementById('clearUserBtn').addEventListener('click', clearUserSelection);
+    document.getElementById('clearGroupBtn').addEventListener('click', clearGroupSelection);
+
+    // モード切り替えのイベントリスナー
+    document.querySelectorAll('input[name="requestMode"]').forEach(radio => {
+      radio.addEventListener('change', updateModeDisplay);
+    });
+    
+    // 初期表示を更新
+    updateModeDisplay();
+
+    document.getElementById('previewBtn').addEventListener('click', previewRequest);
+    document.getElementById('saveDraftBtn').addEventListener('click', saveDraft);
+    document.getElementById('submitBtn').addEventListener('click', submitRequest);
+
+    // ドラフトを読み込む
+    async function loadDraft(draftId) {
+      try {
+        const res = await fetch(`${API_BASE}/requests/${draftId}`);
+        if (!res.ok) {
+          throw new Error('ドラフトの読み込みに失敗しました');
+        }
+        const request = await res.json();
+        
+        if (request.status !== 'draft') {
+          alert('この申請はドラフトではありません');
+          return;
+        }
+        
+        // ドラフト情報をフォームに設定
+        currentDraftId = request.id;
+        
+        // ユーザーを選択
+        if (request.requester_info && request.requester_info.id) {
+          selectUser(request.requester_info.id, request.requester_info.user_name);
+        }
+        
+        // グループを選択
+        if (request.group_id) {
+          await selectGroup(request.group_id, request.group_name);
+        }
+        
+        // データセットを選択
+        if (request.datasets && request.datasets.length > 0) {
+          // データセットリストを読み込んでから選択
+          await loadDatasetsForGroup(request.group_id);
+          setTimeout(() => {
+            request.datasets.forEach(ds => {
+              const checkbox = document.querySelector(`#datasetList input[type=checkbox][value="${ds.id}"]`);
+              if (checkbox) {
+                checkbox.checked = true;
+              }
+            });
+          }, 500);
+        }
+        
+        // 申請理由を設定
+        if (request.request_reason) {
+          document.getElementById('requestReason').value = request.request_reason;
+        }
+        
+        // JIRAテキストを設定
+        if (request.jira_text) {
+          document.getElementById('jiraText').value = request.jira_text;
+        }
+        
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        alert('ドラフトの読み込みに失敗しました');
+      }
+    }
+
+    // 初期読み込み
+    if (checkAuth()) {
+      loadUsers();
+      
+      // URLパラメータからドラフトIDを取得
+      const urlParams = new URLSearchParams(window.location.search);
+      const draftId = urlParams.get('draftId');
+      if (draftId) {
+        // ユーザーとグループの読み込み完了を待ってからドラフトを読み込む
+        setTimeout(() => {
+          loadDraft(draftId);
+        }, 1000);
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>
+

@@ -47,6 +47,24 @@ CREATE TABLE IF NOT EXISTS qs_group_members (
   qs_username text
 );
 
+-- Databricks テーブル
+CREATE TABLE IF NOT EXISTS dbx_tables (
+  id serial PRIMARY KEY,
+  catalog_name text NOT NULL,
+  schema_name text NOT NULL,
+  table_name text NOT NULL,
+  description text,
+  UNIQUE(catalog_name, schema_name, table_name)
+);
+
+-- Databricks グループ
+CREATE TABLE IF NOT EXISTS dbx_groups (
+  id serial PRIMARY KEY,
+  group_name text NOT NULL UNIQUE,
+  group_owner text,
+  dbp_manager text
+);
+
 -- ============================================
 -- 2. 関連テーブル
 -- ============================================
@@ -72,6 +90,20 @@ CREATE TABLE IF NOT EXISTS group_applications (
   PRIMARY KEY (group_id, application_id)
 );
 
+-- アプリケーション ↔ Databricksテーブル（1つのテーブルに複数のアプリケーションが紐づく）
+CREATE TABLE IF NOT EXISTS application_dbx_tables (
+  application_id int NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  table_id int NOT NULL REFERENCES dbx_tables(id) ON DELETE CASCADE,
+  PRIMARY KEY (application_id, table_id)
+);
+
+-- DBXグループ ↔ Databricksテーブル
+CREATE TABLE IF NOT EXISTS dbx_group_tables (
+  group_id int NOT NULL REFERENCES dbx_groups(id) ON DELETE CASCADE,
+  table_id int NOT NULL REFERENCES dbx_tables(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, table_id)
+);
+
 -- ============================================
 -- 3. ユーザー管理テーブル
 -- ============================================
@@ -93,6 +125,13 @@ CREATE TABLE IF NOT EXISTS user_groups (
   PRIMARY KEY (user_id, group_id)
 );
 
+-- ユーザー ↔ DBXグループ
+CREATE TABLE IF NOT EXISTS user_dbx_groups (
+  user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id int NOT NULL REFERENCES dbx_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, group_id)
+);
+
 -- ============================================
 -- 4. 申請管理テーブル
 -- ============================================
@@ -100,23 +139,31 @@ CREATE TABLE IF NOT EXISTS user_groups (
 -- 申請履歴（ヘッダ）
 CREATE TABLE IF NOT EXISTS request_history (
   id serial PRIMARY KEY,
-  group_id int REFERENCES qs_groups(id) ON DELETE SET NULL,  -- グループ作成申請の場合はNULL
+  group_id int REFERENCES qs_groups(id) ON DELETE SET NULL,  -- QSグループ作成申請の場合はNULL
+  dbx_group_id int REFERENCES dbx_groups(id) ON DELETE SET NULL,  -- DBXグループ作成申請の場合はNULL
   requester text NOT NULL,
   request_date timestamp NOT NULL DEFAULT now(),
   status text NOT NULL DEFAULT 'requested',  -- 'requested', 'approved', 'rejected', 'withdrawn', 'draft'
   jira_text text,
   request_reason text,  -- 申請理由
-  request_type text,  -- 'dataset_access', 'remove_dataset_access', 'create_group', 'remove_group', 'add_members', 'remove_members'
+  request_type text,  -- 'dataset_access', 'remove_dataset_access', 'create_group', 'remove_group', 'add_members', 'remove_members', 'dbx_table_access', 'dbx_remove_table_access', 'dbx_create_group', 'dbx_remove_group', 'dbx_add_members', 'dbx_remove_members'
   new_group_name text,  -- グループ作成申請用
   new_group_owner text,  -- グループ作成申請用
   new_dbp_manager text  -- グループ作成申請用
 );
 
--- 申請 ↔ データセット
+-- 申請 ↔ データセット（QS用）
 CREATE TABLE IF NOT EXISTS request_datasets (
   request_id int NOT NULL REFERENCES request_history(id) ON DELETE CASCADE,
   dataset_id int NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
   PRIMARY KEY (request_id, dataset_id)
+);
+
+-- 申請 ↔ Databricksテーブル（DBX用）
+CREATE TABLE IF NOT EXISTS request_dbx_tables (
+  request_id int NOT NULL REFERENCES request_history(id) ON DELETE CASCADE,
+  table_id int NOT NULL REFERENCES dbx_tables(id) ON DELETE CASCADE,
+  PRIMARY KEY (request_id, table_id)
 );
 
 -- 申請 ↔ メンバー（メンバー追加・削除申請用）
@@ -157,6 +204,10 @@ CREATE INDEX IF NOT EXISTS idx_request_history_requester ON request_history(requ
 CREATE INDEX IF NOT EXISTS idx_request_history_status ON request_history(status);
 CREATE INDEX IF NOT EXISTS idx_request_history_request_type ON request_history(request_type);
 CREATE INDEX IF NOT EXISTS idx_request_history_group_id ON request_history(group_id);
+CREATE INDEX IF NOT EXISTS idx_request_history_dbx_group_id ON request_history(dbx_group_id);
+
+-- DBXテーブルのインデックス
+CREATE INDEX IF NOT EXISTS idx_dbx_tables_catalog_schema_table ON dbx_tables(catalog_name, schema_name, table_name);
 
 -- ユーザーのインデックス
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
