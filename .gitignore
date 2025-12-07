@@ -1,4 +1,4 @@
-node_modules/
+# node_modules/  # 会社パソコンでnpmが使えないため、リポジトリに含める
 .DS_Store
 *.log
 .env
