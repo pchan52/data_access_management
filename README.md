@@ -27,8 +27,8 @@ npm install
 ### 2. PostgreSQLデータベースのセットアップ
 
 #### 2.1 データベース作成
-```bash
-createdb access_governance
+```psql
+create database access_governance;
 ```
 
 #### 2.2 テーブル作成（必須）
