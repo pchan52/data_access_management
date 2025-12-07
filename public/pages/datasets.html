@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>データセット一覧</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .layout {
+      display: flex;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    .list-section {
+      width: 35%;
+      min-width: 300px;
+    }
+    .detail-section {
+      flex: 1;
+    }
+    .dataset-item {
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      background: var(--background);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .dataset-item:hover {
+      background: var(--surface);
+      border-color: var(--primary-color);
+      transform: translateX(4px);
+    }
+    .dataset-item.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    .dataset-item.selected:hover {
+      background: var(--primary-hover);
+    }
+    .dataset-item-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .dataset-item-id {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    .detail-content {
+      background: var(--surface);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+    .detail-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+    }
+    .detail-content h3:first-child {
+      margin-top: 0;
+    }
+    .detail-content p {
+      margin-bottom: 1rem;
+      line-height: 1.8;
+    }
+    .detail-content strong {
+      color: var(--text-primary);
+      font-weight: 600;
+      display: inline-block;
+      min-width: 140px;
+    }
+    .detail-content pre {
+      background: var(--background);
+      padding: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      max-height: 400px;
+      overflow: auto;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+    .detail-content ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .detail-content li {
+      margin-bottom: 0.5rem;
+    }
+    .empty-message {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+    .search-box {
+      margin-bottom: 1.5rem;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .search-box input::placeholder {
+      color: var(--text-secondary);
+    }
+    .result-count {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      .layout {
+        flex-direction: column;
+      }
+      .list-section {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>データセット一覧</h1>
+    <a href="/pages/top.html" class="back-link">← トップへ戻る</a>
+
+    <div class="layout">
+      <section class="list-section">
+        <h2>データセット</h2>
+        <div class="search-box">
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="データセット名またはIDで検索..."
+            autocomplete="off"
+          />
+          <div class="result-count" id="resultCount"></div>
+        </div>
+        <div id="datasetList" class="empty-message">読み込み中...</div>
+      </section>
+
+      <section class="detail-section">
+        <h2>詳細</h2>
+        <div id="detailArea" class="detail-content">
+          <p class="text-muted">データセットをクリックすると詳細が表示されます。</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let allDatasets = [];
+    let filteredDatasets = [];
+
+    async function loadDatasets() {
+      try {
+        const res = await fetch(`${API_BASE}/datasets`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        allDatasets = await res.json();
+        filteredDatasets = allDatasets;
+        renderDatasets();
+        updateResultCount();
+      } catch (error) {
+        console.error('Error loading datasets:', error);
+        const list = document.getElementById('datasetList');
+        list.innerHTML = '<p class="empty-message">データの読み込みに失敗しました。サーバーが起動しているか確認してください。</p>';
+      }
+    }
+
+    function filterDatasets() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+      
+      if (searchTerm === '') {
+        filteredDatasets = allDatasets;
+      } else {
+        filteredDatasets = allDatasets.filter(dataset => {
+          const nameMatch = dataset.dataset_name?.toLowerCase().includes(searchTerm);
+          const idMatch = dataset.dataset_id?.toLowerCase().includes(searchTerm);
+          return nameMatch || idMatch;
+        });
+      }
+      
+      renderDatasets();
+      updateResultCount();
+    }
+
+    function renderDatasets() {
+      const list = document.getElementById('datasetList');
+      list.innerHTML = '';
+
+      if (filteredDatasets.length === 0) {
+        list.innerHTML = '<p class="empty-message">該当するデータセットが見つかりませんでした。</p>';
+        return;
+      }
+
+      filteredDatasets.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'dataset-item';
+        div.innerHTML = `
+          <div class="dataset-item-name">${escapeHtml(d.dataset_name || '名称不明')}</div>
+          <div class="dataset-item-id">${escapeHtml(d.dataset_id || 'ID不明')}</div>
+        `;
+        div.dataset.id = d.id;
+        div.addEventListener('click', () => selectDataset(div, d.id));
+        list.appendChild(div);
+      });
+    }
+
+    function updateResultCount() {
+      const countElement = document.getElementById('resultCount');
+      if (allDatasets.length === 0) {
+        countElement.textContent = '';
+        return;
+      }
+      
+      if (filteredDatasets.length === allDatasets.length) {
+        countElement.textContent = `全${allDatasets.length}件`;
+      } else {
+        countElement.textContent = `${filteredDatasets.length}件 / 全${allDatasets.length}件`;
+      }
+    }
+
+    async function selectDataset(element, id) {
+      // 選択表示の更新
+      document.querySelectorAll('.dataset-item').forEach(el => el.classList.remove('selected'));
+      element.classList.add('selected');
+
+      const res = await fetch(`${API_BASE}/datasets/${id}`);
+      if (!res.ok) {
+        document.getElementById('detailArea').innerHTML = '<p class="text-muted">詳細の取得に失敗しました。</p>';
+        return;
+      }
+      const data = await res.json();
+
+      const detail = document.getElementById('detailArea');
+      detail.innerHTML = `
+        <p><strong>データセット名:</strong> ${escapeHtml(data.dataset_name || '名称不明')}</p>
+        <p><strong>データセットID:</strong> <code>${escapeHtml(data.dataset_id || 'ID不明')}</code></p>
+        <p><strong>説明:</strong><br>${escapeHtml(data.description || '(なし)')}</p>
+        ${data.metadata ? `
+          <h3>メタデータ</h3>
+          <pre>${escapeHtml(JSON.stringify(data.metadata, null, 2))}</pre>
+        ` : ''}
+        ${data.applications && data.applications.length > 0 ? `
+          <h3>紐づくアプリケーション</h3>
+          ${renderApplications(data.applications)}
+        ` : ''}
+      `;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderApplications(apps) {
+      if (!apps || apps.length === 0) {
+        return '<p class="text-muted">紐づくアプリケーションは登録されていません。</p>';
+      }
+      let html = '<ul>';
+      for (const a of apps) {
+        html += `<li>${escapeHtml(a.application_name || '名称不明')} <code>${escapeHtml(a.application_id || 'ID不明')}</code></li>`;
+      }
+      html += '</ul>';
+      return html;
+    }
+
+    // 検索入力欄のイベントリスナー
+    document.getElementById('searchInput').addEventListener('input', filterDatasets);
+
+    // 初期読み込み
+    loadDatasets();
+  </script>
+</body>
+</html>

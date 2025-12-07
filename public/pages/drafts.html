@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ドラフト一覧</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .draft-item {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: var(--surface);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .draft-item:hover {
+      background: var(--background);
+      border-color: var(--primary-color);
+      transform: translateX(4px);
+    }
+    .draft-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .draft-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .request-id {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: var(--primary-color);
+      color: white;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .request-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .request-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-draft {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .draft-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .draft-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .request-datasets {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: var(--background);
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .draft-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .draft-actions button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .btn-edit {
+      background: var(--primary-color);
+      color: white;
+    }
+    .btn-edit:hover {
+      background: var(--primary-hover);
+    }
+    .btn-delete {
+      background: #dc3545;
+      color: white;
+    }
+    .btn-delete:hover {
+      background: #c82333;
+    }
+    .btn-submit {
+      background: var(--success-color);
+      color: white;
+    }
+    .btn-submit:hover {
+      background: #0d9668;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    .modal-content {
+      background-color: var(--surface);
+      margin: 2% auto;
+      padding: 2rem;
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+    .modal-header h2 {
+      margin: 0;
+      color: var(--primary-color);
+    }
+    .close {
+      color: var(--text-secondary);
+      font-size: 2rem;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .close:hover {
+      color: var(--text-primary);
+    }
+    .detail-section {
+      margin-bottom: 1.5rem;
+    }
+    .detail-section h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .info-row {
+      display: flex;
+      margin-bottom: 0.75rem;
+    }
+    .info-label {
+      font-weight: 600;
+      min-width: 150px;
+      color: var(--text-primary);
+    }
+    .info-value {
+      flex: 1;
+      color: var(--text-secondary);
+    }
+    .jira-text {
+      background: var(--background);
+      padding: 1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-color);
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 0.875rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid var(--border-color);
+    }
+    .modal-actions button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ドラフト一覧</h1>
+    
+    <div style="margin-bottom: 1.5rem;">
+      <a href="/pages/top.html" style="color: var(--primary-color); text-decoration: none;">← トップページに戻る</a>
+    </div>
+
+    <section id="draftsList">
+      <div class="empty-state">
+        <p>ドラフトを読み込み中...</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- モーダル -->
+  <div id="draftModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>ドラフト詳細</h2>
+        <span class="close" onclick="closeModal()">&times;</span>
+      </div>
+      <div id="draftDetail"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+
+    // ログインチェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!user) {
+        alert('ログインが必要です');
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    async function loadDrafts() {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user || !user.email) {
+          document.getElementById('draftsList').innerHTML = 
+            '<div class="empty-state"><p>ログインユーザー情報が取得できませんでした。</p></div>';
+          return;
+        }
+
+        const res = await fetch(`${API_BASE}/requests/drafts?requesterEmail=${encodeURIComponent(user.email)}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const drafts = await res.json();
+        renderDrafts(drafts);
+      } catch (error) {
+        console.error('Error loading drafts:', error);
+        document.getElementById('draftsList').innerHTML = 
+          '<div class="empty-state"><p>ドラフトの読み込みに失敗しました。</p></div>';
+      }
+    }
+
+    function renderDrafts(drafts) {
+      const list = document.getElementById('draftsList');
+      
+      if (drafts.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p>ドラフトはありません。</p></div>';
+        return;
+      }
+
+      list.innerHTML = drafts.map(draft => {
+        const requestDate = new Date(draft.request_date).toLocaleString('ja-JP');
+        
+        // 申請タイプのラベル
+        const requestTypeLabels = {
+          'dataset_access': 'データセットアクセス',
+          'remove_dataset_access': 'データセットアクセス削除',
+          'create_group': 'グループ作成',
+          'remove_group': 'グループ削除',
+          'add_members': 'メンバー追加',
+          'remove_members': 'メンバー削除'
+        };
+        const requestTypeLabel = requestTypeLabels[draft.request_type] || draft.request_type || 'データセットアクセス';
+        
+        // データセット情報
+        const datasetsInfo = draft.datasets ? draft.datasets.split(', ').slice(0, 3).join(', ') : 'なし';
+        const datasetsCount = draft.datasets ? draft.datasets.split(', ').length : 0;
+        const datasetsDisplay = datasetsCount > 3 ? `${datasetsInfo} ... (他${datasetsCount - 3}件)` : datasetsInfo;
+        
+        return `
+          <div class="draft-item">
+            <div class="draft-header">
+              <div style="flex: 1;">
+                <div class="draft-title">
+                  <span class="request-id">#${draft.id}</span>
+                  <span class="request-type-badge">${requestTypeLabel}</span>
+                  <span class="request-date">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    ${requestDate}
+                  </span>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="status-badge status-draft">ドラフト</span>
+              </div>
+            </div>
+            <div class="draft-meta">
+              <div class="draft-meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <strong>申請者:</strong> ${escapeHtml(draft.requester || '不明')}
+              </div>
+              ${draft.group_name ? `
+              <div class="draft-meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <strong>対象グループ:</strong> ${escapeHtml(draft.group_name)}
+              </div>
+              ` : ''}
+            </div>
+            ${draft.datasets ? `
+              <div class="request-datasets">
+                <strong>対象データセット:</strong> ${escapeHtml(draft.datasets)}
+              </div>
+            ` : ''}
+            ${draft.request_reason ? `
+              <div class="request-datasets">
+                <strong>申請理由:</strong> ${escapeHtml(draft.request_reason)}
+              </div>
+            ` : ''}
+            <div class="draft-actions" onclick="event.stopPropagation();">
+              <button class="btn-edit" onclick="editDraft(${draft.id})">編集</button>
+              <button class="btn-submit" onclick="submitDraft(${draft.id})">申請を送信</button>
+              <button class="btn-delete" onclick="deleteDraft(${draft.id})">削除</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    let currentDraftId = null;
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function viewDraftDetail(draftId) {
+      currentDraftId = draftId;
+      try {
+        const res = await fetch(`${API_BASE}/requests/${draftId}`);
+        if (!res.ok) {
+          throw new Error('ドラフトの取得に失敗しました');
+        }
+        const draft = await res.json();
+        
+        if (draft.status !== 'draft') {
+          alert('この申請はドラフトではありません');
+          return;
+        }
+        
+        renderDraftDetail(draft);
+        document.getElementById('draftModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error loading draft detail:', error);
+        alert('ドラフトの読み込みに失敗しました');
+      }
+    }
+
+    function renderDraftDetail(draft) {
+      const detailDiv = document.getElementById('draftDetail');
+      const requestDate = new Date(draft.request_date).toLocaleString('ja-JP');
+      
+      // 申請タイプのラベル
+      const requestTypeLabels = {
+        'dataset_access': 'データセットアクセス',
+        'create_group': '新規グループ作成',
+        'add_members': 'メンバー追加'
+      };
+      const requestTypeLabel = requestTypeLabels[draft.request_type] || draft.request_type || 'データセットアクセス';
+      
+      let html = `
+        <div class="detail-section">
+          <h3>基本情報</h3>
+          <div class="info-row">
+            <div class="info-label">申請ID:</div>
+            <div class="info-value">${draft.id}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">作成日時:</div>
+            <div class="info-value">${requestDate}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">ステータス:</div>
+            <div class="info-value"><span class="status-draft">ドラフト</span></div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">申請タイプ:</div>
+            <div class="info-value">${requestTypeLabel}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">申請者:</div>
+            <div class="info-value">${escapeHtml(draft.requester || '不明')}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">グループ名:</div>
+            <div class="info-value">${escapeHtml(draft.group_name || '不明')}</div>
+          </div>
+      `;
+      
+      if (draft.request_reason) {
+        html += `
+          <div class="info-row">
+            <div class="info-label">申請理由:</div>
+            <div class="info-value">${escapeHtml(draft.request_reason)}</div>
+          </div>
+        `;
+      }
+      
+      html += `</div>`;
+      
+      // データセット情報
+      if (draft.datasets && draft.datasets.length > 0) {
+        html += `
+          <div class="detail-section">
+            <h3>対象データセット</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>データセット名</th>
+                  <th>データセットID</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        draft.datasets.forEach(ds => {
+          html += `
+            <tr>
+              <td>${escapeHtml(ds.dataset_name || '')}</td>
+              <td><code>${escapeHtml(ds.dataset_id || '')}</code></td>
+            </tr>
+          `;
+        });
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      
+      // JIRAテキスト
+      if (draft.jira_text) {
+        html += `
+          <div class="detail-section">
+            <h3>JIRA用テキスト</h3>
+            <div class="jira-text">${escapeHtml(draft.jira_text)}</div>
+          </div>
+        `;
+      }
+      
+      // アクションボタン
+      html += `
+        <div class="modal-actions">
+          <button class="btn-edit" onclick="editDraftFromModal()">編集</button>
+          <button class="btn-submit" onclick="submitDraftFromModal()">申請を送信</button>
+          <button class="btn-delete" onclick="deleteDraftFromModal()">削除</button>
+        </div>
+      `;
+      
+      detailDiv.innerHTML = html;
+    }
+
+    function closeModal() {
+      document.getElementById('draftModal').style.display = 'none';
+      currentDraftId = null;
+    }
+
+    // モーダル外をクリックしたら閉じる
+    window.onclick = function(event) {
+      const modal = document.getElementById('draftModal');
+      if (event.target == modal) {
+        closeModal();
+      }
+    }
+
+    function editDraft(draftId) {
+      window.location.href = `/pages/request.html?draftId=${draftId}`;
+    }
+
+    function editDraftFromModal() {
+      if (currentDraftId) {
+        editDraft(currentDraftId);
+      }
+    }
+
+    async function submitDraftFromModal() {
+      if (!currentDraftId) return;
+      closeModal();
+      await submitDraft(currentDraftId);
+    }
+
+    async function deleteDraftFromModal() {
+      if (!currentDraftId) return;
+      closeModal();
+      await deleteDraft(currentDraftId);
+    }
+
+    async function submitDraft(draftId) {
+      if (!confirm('このドラフトを申請として送信しますか？送信後は承認プロセスが開始されます。')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/requests/${draftId}/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || '申請の送信に失敗しました');
+        }
+
+        const data = await res.json();
+        alert(data.message || '申請を送信しました');
+        loadDrafts(); // 一覧を再読み込み
+      } catch (error) {
+        console.error('Error submitting draft:', error);
+        alert('申請の送信に失敗しました: ' + error.message);
+      }
+    }
+
+    async function deleteDraft(draftId) {
+      if (!confirm('このドラフトを削除しますか？この操作は取り消せません。')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/requests/${draftId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'ドラフトの削除に失敗しました');
+        }
+
+        alert('ドラフトを削除しました');
+        loadDrafts(); // 一覧を再読み込み
+      } catch (error) {
+        console.error('Error deleting draft:', error);
+        alert('ドラフトの削除に失敗しました: ' + error.message);
+      }
+    }
+
+    // 初期読み込み
+    if (checkAuth()) {
+      loadDrafts();
+    }
+  </script>
+</body>
+</html>
+
+

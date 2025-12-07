@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quicksight アクセス管理ポータル</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="container">
+  <h1>Quicksight アクセス管理ポータル</h1>
+  
+  <div id="userInfo" style="text-align: right; margin-bottom: 1rem; padding: 0.75rem; background: var(--surface); border-radius: var(--radius);">
+    <span id="userName" style="margin-right: 1rem;"></span>
+    <button id="logoutBtn" onclick="handleLogout()" style="padding: 0.5rem 1rem; background: var(--secondary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;">ログアウト</button>
+  </div>
+
+  <section>
+    <h2>このツールについて</h2>
+    <p>
+      Quicksight データセットのアクセス申請・管理を行うためのポータルです。<br>
+      データセットアクセス申請、新規グループ作成申請、メンバー追加申請を一元管理し、承認プロセスを効率化します。
+    </p>
+    <p style="margin-top: 1rem;">
+      <a href="/pages/usage.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">
+        📖 使い方ガイドを見る →
+      </a>
+    </p>
+  </section>
+
+  <section id="userGroupsSection" style="display: none;">
+    <h2>所属グループ</h2>
+    <div id="userGroupsList">
+      <p>読み込み中...</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>ページ一覧</h2>
+    
+    <div class="page-section">
+      <h3>申請ページ</h3>
+      <ul class="page-list">
+        <li><a href="/pages/request.html">データセットアクセス申請<br><span class="text-muted">データセットへのアクセス申請</span></a></li>
+        <li><a href="/pages/member_request.html">メンバー管理申請<br><span class="text-muted">既存グループへのメンバー追加・削除申請</span></a></li>
+        <li><a href="/pages/group_request.html">グループ管理申請<br><span class="text-muted">新規グループの作成・削除申請</span></a></li>
+      </ul>
+    </div>
+
+    <div class="page-section">
+      <h3>申請一覧</h3>
+      <ul class="page-list">
+        <li><a href="/pages/drafts.html">ドラフト一覧<br><span class="text-muted">保存したドラフトの閲覧・編集</span></a></li>
+        <li><a href="/pages/requests.html">申請一覧<br><span class="text-muted">登録された申請の一覧と詳細確認</span></a></li>
+        <li id="approvalLink" style="display: none;"><a href="/pages/approval.html">承認画面<br><span class="text-muted">承認待ち申請の承認・却下</span></a></li>
+      </ul>
+    </div>
+
+    <div class="page-section">
+      <h3>一覧ページ</h3>
+      <ul class="page-list">
+        <li><a href="/pages/datasets.html">データセット一覧<br><span class="text-muted">データセットのメタデータ閲覧</span></a></li>
+        <li><a href="/pages/groups.html">QSグループ一覧<br><span class="text-muted">オーナー、メンバー、対応DBP、申請履歴</span></a></li>
+        <li><a href="/pages/users.html">メンバー一覧<br><span class="text-muted">ユーザー情報と所属グループ</span></a></li>
+        <li><a href="/pages/applications.html">アプリケーション一覧<br><span class="text-muted">アプリケーション・ビジネスオーナー</span></a></li>
+      </ul>
+    </div>
+  </section>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+
+    // ログインチェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!user) {
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      
+      // ユーザー情報を表示
+      const userName = document.getElementById('userName');
+      userName.textContent = `${user.user_name || user.email} でログイン中`;
+      
+      // 承認者の場合のみ承認画面へのリンクを表示
+      const isApprover = localStorage.getItem('isApprover') === 'true';
+      const approvalLink = document.getElementById('approvalLink');
+      if (isApprover) {
+        approvalLink.style.display = 'block';
+      } else {
+        approvalLink.style.display = 'none';
+      }
+      
+      // 所属グループを読み込む
+      if (user.id) {
+        loadUserGroups(user.id);
+      }
+      
+      return true;
+    }
+
+    async function loadUserGroups(userId) {
+      try {
+        const res = await fetch(`${API_BASE}/users/${userId}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const user = await res.json();
+        
+        const groupsSection = document.getElementById('userGroupsSection');
+        const groupsList = document.getElementById('userGroupsList');
+        
+        if (user.groups && user.groups.length > 0) {
+          let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">';
+          user.groups.forEach(group => {
+            const ownerDisplay = group.group_owner_name 
+              ? `${escapeHtml(group.group_owner_name)} (${escapeHtml(group.group_owner || '')})`
+              : escapeHtml(group.group_owner || '(未設定)');
+            const dbpDisplay = group.dbp_manager_name
+              ? `${escapeHtml(group.dbp_manager_name)} (${escapeHtml(group.dbp_manager || '')})`
+              : escapeHtml(group.dbp_manager || '(未設定)');
+            
+            html += `
+              <div style="padding: 1rem; background: var(--background); border: 2px solid var(--border-color); border-radius: var(--radius);">
+                <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">${escapeHtml(group.group_name || '')}</h3>
+                <p style="margin: 0.25rem 0; font-size: 0.875rem;">
+                  <strong>グループオーナー:</strong> ${ownerDisplay}
+                </p>
+                <p style="margin: 0.25rem 0; font-size: 0.875rem;">
+                  <strong>DBPマネージャー:</strong> ${dbpDisplay}
+                </p>
+              </div>
+            `;
+          });
+          html += '</div>';
+          groupsList.innerHTML = html;
+          groupsSection.style.display = 'block';
+        } else {
+          groupsList.innerHTML = '<p style="color: var(--text-secondary);">所属しているグループはありません。</p>';
+          groupsSection.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error loading user groups:', error);
+        document.getElementById('userGroupsList').innerHTML = 
+          '<p style="color: var(--warning-color);">グループ情報の読み込みに失敗しました。</p>';
+        document.getElementById('userGroupsSection').style.display = 'block';
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function handleLogout() {
+      if (confirm('ログアウトしますか？')) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('isApprover');
+        window.location.href = '/pages/login.html';
+      }
+    }
+
+    // 初期読み込み
+    checkAuth();
+  </script>
+</body>
+</html>

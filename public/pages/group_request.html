@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>グループ管理申請</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>グループ管理申請</h1>
+    <a href="/pages/top.html" class="back-link">← トップへ戻る</a>
+
+    <section>
+      <h2>申請モードを選択</h2>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 2px solid var(--border-color); border-radius: var(--radius); cursor: pointer; background: var(--surface); transition: all 0.2s;">
+          <input type="radio" name="requestMode" value="add" checked style="cursor: pointer;">
+          <span>グループ作成</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 2px solid var(--border-color); border-radius: var(--radius); cursor: pointer; background: var(--surface); transition: all 0.2s;">
+          <input type="radio" name="requestMode" value="remove" style="cursor: pointer;">
+          <span>グループ削除</span>
+        </label>
+      </div>
+      <p class="text-muted" id="modeDescription">新規グループを作成する申請を行います。</p>
+    </section>
+
+    <section>
+      <h2><span class="step-number">1</span>申請者を選択</h2>
+      <div style="position: relative;">
+        <input 
+          type="text" 
+          id="userSearchInput" 
+          placeholder="ユーザー名、ID、メールアドレスで検索..."
+          autocomplete="off"
+          style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem;"
+        />
+        <div id="userDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 2px solid var(--border-color); border-radius: var(--radius); margin-top: 0.25rem; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-lg);">
+          <div id="userList" style="padding: 0.5rem;"></div>
+        </div>
+      </div>
+      <input type="hidden" id="userSelect" value="" />
+      <div id="selectedUser" style="margin-top: 0.75rem; padding: 0.75rem; background: var(--background); border-radius: var(--radius); display: none;">
+        <span style="font-weight: 600;">選択中: </span>
+        <span id="selectedUserName"></span>
+        <button type="button" id="clearUserBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; background: var(--secondary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;">クリア</button>
+      </div>
+    </section>
+
+    <section id="groupInfoSection">
+      <h2><span class="step-number">2</span><span id="groupSectionTitle">グループ情報を入力</span></h2>
+      
+      <!-- 追加モード: グループ情報入力 -->
+      <div id="addModeFields">
+        <div style="margin-bottom: 1rem;">
+          <label for="groupName" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">グループ名 <span style="color: #dc3545;">*</span></label>
+          <input 
+            type="text" 
+            id="groupName" 
+            placeholder="例: 新規部署"
+            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem;"
+          />
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label for="groupOwner" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">グループオーナー（メールアドレス） <span style="color: #dc3545;">*</span></label>
+          <input 
+            type="email" 
+            id="groupOwner" 
+            placeholder="owner@example.com"
+            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem;"
+          />
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label for="dbpManager" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">DBPマネージャー（メールアドレス） <span style="color: #dc3545;">*</span></label>
+          <input 
+            type="email" 
+            id="dbpManager" 
+            placeholder="dbp@example.com"
+            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem;"
+          />
+        </div>
+      </div>
+      
+      <!-- 削除モード: 既存グループ選択 -->
+      <div id="removeModeFields" style="display: none;">
+        <div style="position: relative; margin-bottom: 1rem;">
+          <label for="groupSearchInput" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">削除するグループを選択 <span style="color: #dc3545;">*</span></label>
+          <input 
+            type="text" 
+            id="groupSearchInput" 
+            placeholder="グループ名で検索..."
+            autocomplete="off"
+            disabled
+            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; opacity: 0.5;"
+          />
+          <div id="groupDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 2px solid var(--border-color); border-radius: var(--radius); margin-top: 0.25rem; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-lg);">
+            <div id="groupList" style="padding: 0.5rem;"></div>
+          </div>
+        </div>
+        <input type="hidden" id="groupSelect" value="" />
+        <div id="selectedGroup" style="margin-top: 0.75rem; padding: 0.75rem; background: var(--background); border-radius: var(--radius); display: none;">
+          <span style="font-weight: 600;">選択中: </span>
+          <span id="selectedGroupName"></span>
+          <button type="button" id="clearGroupBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; background: var(--secondary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;">クリア</button>
+        </div>
+        <p class="text-muted" style="margin-top: 0.5rem;">まず、申請者を選択してください。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="step-number">3</span>申請理由を記入 <span style="color: #dc3545;">*</span></h2>
+      <textarea 
+        id="requestReason" 
+        rows="4" 
+        placeholder="申請理由を記入してください（必須）"
+        required
+        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; font-family: inherit; resize: vertical;"
+      ></textarea>
+    </section>
+
+    <section>
+      <div class="button-group" style="display: flex; gap: 1rem;">
+        <button id="saveDraftBtn" class="button-secondary" style="background: #6c757d;">ドラフト保存</button>
+        <button id="submitBtn" class="button-secondary" style="background: var(--primary-color);">申請を送信</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let allUsers = [];
+    let filteredUsers = [];
+    let allGroups = [];
+    let filteredGroups = [];
+    let requestMode = 'add'; // 'add' or 'remove'
+    let selectedGroupId = null;
+    let currentDraftId = null; // 現在編集中のドラフトID
+
+    // モード切り替えの処理
+    function updateModeDisplay() {
+      const mode = document.querySelector('input[name="requestMode"]:checked').value;
+      requestMode = mode;
+      
+      const modeDescription = document.getElementById('modeDescription');
+      const groupSectionTitle = document.getElementById('groupSectionTitle');
+      const addModeFields = document.getElementById('addModeFields');
+      const removeModeFields = document.getElementById('removeModeFields');
+      const groupNameInput = document.getElementById('groupName');
+      const groupOwnerInput = document.getElementById('groupOwner');
+      const dbpManagerInput = document.getElementById('dbpManager');
+      
+      if (mode === 'remove') {
+        modeDescription.textContent = '既存グループを削除する申請を行います。';
+        groupSectionTitle.textContent = '削除するグループを選択';
+        addModeFields.style.display = 'none';
+        removeModeFields.style.display = 'block';
+        groupNameInput.removeAttribute('required');
+        groupOwnerInput.removeAttribute('required');
+        dbpManagerInput.removeAttribute('required');
+        
+        // 申請者が選択されている場合は申請者が所属するグループ一覧を読み込む
+        const userId = document.getElementById('userSelect').value;
+        if (userId) {
+          loadGroups(userId);
+        } else {
+          // 申請者が選択されていない場合はグループ一覧をクリア
+          allGroups = [];
+          filteredGroups = [];
+          renderGroupList();
+          const groupSearchInput = document.getElementById('groupSearchInput');
+          if (groupSearchInput) {
+            groupSearchInput.disabled = true;
+            groupSearchInput.style.opacity = '0.5';
+            groupSearchInput.placeholder = 'まず、申請者を選択してください';
+          }
+        }
+      } else {
+        modeDescription.textContent = '新規グループを作成する申請を行います。';
+        groupSectionTitle.textContent = 'グループ情報を入力';
+        addModeFields.style.display = 'block';
+        removeModeFields.style.display = 'none';
+        groupNameInput.setAttribute('required', 'required');
+        groupOwnerInput.setAttribute('required', 'required');
+        dbpManagerInput.setAttribute('required', 'required');
+        
+        // 選択されたグループをクリア
+        clearGroupSelection();
+      }
+    }
+
+    // ログインチェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!user) {
+        alert('ログインが必要です');
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    // ログインユーザーをデフォルトで選択
+    function selectLoggedInUser() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (user && user.id) {
+        const loggedInUser = allUsers.find(u => u.id === user.id);
+        if (loggedInUser) {
+          selectUser(loggedInUser.id, loggedInUser.user_name);
+        }
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetch(`${API_BASE}/users`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        allUsers = await res.json();
+        filteredUsers = allUsers;
+        renderUserList();
+        
+        // ログインユーザーをデフォルトで選択
+        selectLoggedInUser();
+      } catch (error) {
+        console.error('Error loading users:', error);
+        alert('ユーザーの読み込みに失敗しました。サーバーが起動しているか確認してください。');
+      }
+    }
+
+    function filterUsers() {
+      const searchTerm = document.getElementById('userSearchInput').value.toLowerCase().trim();
+      
+      if (searchTerm === '') {
+        filteredUsers = allUsers;
+      } else {
+        filteredUsers = allUsers.filter(user => {
+          const nameMatch = user.user_name?.toLowerCase().includes(searchTerm);
+          const idMatch = user.user_id?.toLowerCase().includes(searchTerm);
+          const emailMatch = user.email?.toLowerCase().includes(searchTerm);
+          const qsUsernameMatch = user.qs_username?.toLowerCase().includes(searchTerm);
+          return nameMatch || idMatch || emailMatch || qsUsernameMatch;
+        });
+      }
+      
+      renderUserList();
+    }
+
+    function renderUserList() {
+      const list = document.getElementById('userList');
+      list.innerHTML = '';
+
+      if (filteredUsers.length === 0) {
+        list.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">該当するユーザーが見つかりませんでした。</div>';
+        return;
+      }
+
+      filteredUsers.forEach(u => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 0.75rem 1rem; cursor: pointer; transition: background-color 0.2s ease; border-bottom: 1px solid var(--border-color);';
+        item.innerHTML = `
+          <div style="font-weight: 600;">${escapeHtml(u.user_name || '名称不明')}</div>
+          <div style="font-size: 0.875rem; color: var(--text-secondary);">${escapeHtml(u.user_id || 'ID不明')}</div>
+        `;
+        item.addEventListener('mouseenter', () => {
+          item.style.backgroundColor = 'var(--background)';
+        });
+        item.addEventListener('mouseleave', () => {
+          item.style.backgroundColor = 'transparent';
+        });
+        item.addEventListener('click', () => {
+          selectUser(u.id, u.user_name);
+        });
+        list.appendChild(item);
+      });
+    }
+
+    async function loadGroups(userId) {
+      try {
+        if (!userId) {
+          allGroups = [];
+          filteredGroups = [];
+          renderGroupList();
+          return;
+        }
+        
+        // 申請者が所属するグループを取得
+        const res = await fetch(`${API_BASE}/users/${userId}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const user = await res.json();
+        allGroups = user.groups || [];
+        filteredGroups = allGroups;
+        
+        console.log('Loaded groups for user:', userId, allGroups); // デバッグ用
+        
+        // グループ検索入力欄を有効化
+        const groupSearchInput = document.getElementById('groupSearchInput');
+        if (groupSearchInput) {
+          groupSearchInput.disabled = false;
+          groupSearchInput.style.opacity = '1';
+          if (allGroups.length === 0) {
+            groupSearchInput.placeholder = '所属グループがありません';
+          } else {
+            groupSearchInput.placeholder = 'グループ名で検索...';
+          }
+        }
+        
+        renderGroupList();
+        
+        // 所属グループが1つだけの場合は自動選択
+        if (allGroups.length === 1) {
+          const group = allGroups[0];
+          selectGroup(group.id, group.group_name, group.group_owner, group.dbp_manager);
+        } else if (allGroups.length > 1) {
+          // 複数の場合は最初のグループを自動選択
+          const group = allGroups[0];
+          selectGroup(group.id, group.group_name, group.group_owner, group.dbp_manager);
+        }
+        
+        // グループが読み込まれたら、検索入力欄をクリックしたときにドロップダウンを表示
+        if (allGroups.length > 0) {
+          const groupDropdown = document.getElementById('groupDropdown');
+          if (groupDropdown && groupSearchInput) {
+            // 検索入力欄をクリックしたときにドロップダウンを表示
+            groupSearchInput.addEventListener('click', () => {
+              if (filteredGroups.length > 0) {
+                groupDropdown.style.display = 'block';
+              }
+            }, { once: true });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading groups:', error);
+        alert('グループ情報の読み込みに失敗しました: ' + error.message);
+        allGroups = [];
+        filteredGroups = [];
+        renderGroupList();
+      }
+    }
+
+    function filterGroups() {
+      const searchTerm = document.getElementById('groupSearchInput').value.toLowerCase().trim();
+      
+      if (searchTerm === '') {
+        filteredGroups = allGroups;
+      } else {
+        filteredGroups = allGroups.filter(group => {
+          return group.group_name?.toLowerCase().includes(searchTerm);
+        });
+      }
+      
+      renderGroupList();
+    }
+
+    function renderGroupList() {
+      const list = document.getElementById('groupList');
+      if (!list) {
+        console.error('groupList element not found');
+        return;
+      }
+      
+      list.innerHTML = '';
+
+      if (filteredGroups.length === 0) {
+        const message = allGroups.length === 0 
+          ? '所属グループがありません。'
+          : '該当するグループが見つかりませんでした。';
+        list.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">${message}</div>`;
+        return;
+      }
+
+      filteredGroups.forEach(g => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 0.75rem 1rem; cursor: pointer; transition: background-color 0.2s ease; border-bottom: 1px solid var(--border-color);';
+        item.textContent = g.group_name;
+        item.addEventListener('mouseenter', () => {
+          item.style.backgroundColor = 'var(--background)';
+        });
+        item.addEventListener('mouseleave', () => {
+          item.style.backgroundColor = 'transparent';
+        });
+        item.addEventListener('click', () => {
+          selectGroup(g.id, g.group_name, g.group_owner, g.dbp_manager);
+        });
+        list.appendChild(item);
+      });
+    }
+
+    function selectGroup(groupId, groupName, groupOwner, dbpManager) {
+      selectedGroupId = groupId;
+      document.getElementById('groupSelect').value = groupId;
+      document.getElementById('selectedGroupName').textContent = groupName;
+      document.getElementById('selectedGroup').style.display = 'block';
+      document.getElementById('groupSearchInput').value = '';
+      document.getElementById('groupDropdown').style.display = 'none';
+    }
+
+    function clearGroupSelection() {
+      selectedGroupId = null;
+      document.getElementById('groupSelect').value = '';
+      document.getElementById('selectedGroup').style.display = 'none';
+      document.getElementById('groupSearchInput').value = '';
+      const groupSearchInput = document.getElementById('groupSearchInput');
+      if (groupSearchInput) {
+        groupSearchInput.disabled = true;
+        groupSearchInput.style.opacity = '0.5';
+      }
+    }
+
+    async function selectUser(userId, userName) {
+      document.getElementById('userSelect').value = userId;
+      document.getElementById('selectedUserName').textContent = userName;
+      document.getElementById('selectedUser').style.display = 'block';
+      document.getElementById('userSearchInput').value = '';
+      document.getElementById('userDropdown').style.display = 'none';
+      
+      // 削除モードの場合は申請者が所属するグループ一覧を読み込む
+      if (requestMode === 'remove') {
+        await loadGroups(userId);
+      }
+    }
+
+    function clearUserSelection() {
+      document.getElementById('userSelect').value = '';
+      document.getElementById('selectedUser').style.display = 'none';
+      document.getElementById('userSearchInput').value = '';
+    }
+
+    async function saveDraft() {
+      const userId = document.getElementById('userSelect').value;
+      if (!userId) {
+        alert('申請者を選択してください');
+        return;
+      }
+      
+      const requestReason = document.getElementById('requestReason').value.trim();
+      if (!requestReason) {
+        alert('申請理由を入力してください');
+        document.getElementById('requestReason').focus();
+        return;
+      }
+
+      try {
+        if (requestMode === 'add') {
+          // 追加モード: 新規グループ作成
+          const groupName = document.getElementById('groupName').value.trim();
+          const groupOwner = document.getElementById('groupOwner').value.trim();
+          const dbpManager = document.getElementById('dbpManager').value.trim();
+          
+          if (!groupName) {
+            alert('グループ名を入力してください');
+            return;
+          }
+          if (!groupOwner) {
+            alert('グループオーナーのメールアドレスを入力してください');
+            return;
+          }
+          if (!dbpManager) {
+            alert('DBPマネージャーのメールアドレスを入力してください');
+            return;
+          }
+
+          const res = await fetch(`${API_BASE}/requests/draft-group`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userId: Number(userId), 
+              groupName: groupName,
+              groupOwner: groupOwner,
+              dbpManager: dbpManager,
+              requestReason: requestReason,
+              requestId: currentDraftId,
+              requestType: 'create_group'
+            })
+          });
+          
+          if (!res.ok) {
+            const error = await res.json();
+            alert(error.error || 'ドラフトの保存に失敗しました');
+            return;
+          }
+          
+          const data = await res.json();
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          
+          currentDraftId = data.requestId;
+        } else {
+          // 削除モード: グループ削除
+          const groupId = selectedGroupId || document.getElementById('groupSelect').value;
+          
+          if (!groupId) {
+            alert('削除するグループを選択してください');
+            return;
+          }
+
+          const res = await fetch(`${API_BASE}/requests/draft-group`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userId: Number(userId), 
+              groupId: Number(groupId),
+              requestReason: requestReason,
+              requestId: currentDraftId,
+              requestType: 'remove_group'
+            })
+          });
+          
+          if (!res.ok) {
+            const error = await res.json();
+            alert(error.error || 'ドラフトの保存に失敗しました');
+            return;
+          }
+          
+          const data = await res.json();
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          
+          currentDraftId = data.requestId;
+        }
+        
+        // 保存成功のポップアップを表示してからドラフト一覧ページに遷移
+        if (confirm('ドラフトを保存しました。\nドラフト一覧ページに移動しますか？')) {
+          window.location.href = '/pages/drafts.html';
+        }
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        alert('ドラフトの保存に失敗しました: ' + error.message);
+      }
+    }
+
+    async function submitRequest() {
+      const userId = document.getElementById('userSelect').value;
+      const requestReason = document.getElementById('requestReason').value.trim();
+      
+      if (!userId) {
+        alert('申請者を選択してください');
+        return;
+      }
+      if (!requestReason) {
+        alert('申請理由を入力してください');
+        document.getElementById('requestReason').focus();
+        return;
+      }
+
+      if (requestMode === 'add') {
+        // 追加モード: 新規グループ作成
+        const groupName = document.getElementById('groupName').value.trim();
+        const groupOwner = document.getElementById('groupOwner').value.trim();
+        const dbpManager = document.getElementById('dbpManager').value.trim();
+        
+        if (!groupName) {
+          alert('グループ名を入力してください');
+          return;
+        }
+        if (!groupOwner) {
+          alert('グループオーナーのメールアドレスを入力してください');
+          return;
+        }
+        if (!dbpManager) {
+          alert('DBPマネージャーのメールアドレスを入力してください');
+          return;
+        }
+
+        if (!confirm('新規グループ作成申請を送信しますか？')) {
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/requests/create-group`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: Number(userId),
+              groupName: groupName,
+              groupOwner: groupOwner,
+              dbpManager: dbpManager,
+              requestReason: requestReason,
+              requestType: 'create_group',
+              requestId: currentDraftId
+            })
+          });
+          
+          const data = await res.json();
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          
+          alert('新規グループ作成申請を保存しました');
+          currentDraftId = null; // 送信後はドラフトIDをクリア
+          
+          // フォームをリセット
+          clearUserSelection();
+          document.getElementById('groupName').value = '';
+          document.getElementById('groupOwner').value = '';
+          document.getElementById('dbpManager').value = '';
+          document.getElementById('requestReason').value = '';
+        } catch (error) {
+          console.error('Error submitting request:', error);
+          alert('申請の保存に失敗しました');
+        }
+      } else {
+        // 削除モード: グループ削除
+        const groupId = selectedGroupId || document.getElementById('groupSelect').value;
+        
+        if (!groupId) {
+          alert('削除するグループを選択してください');
+          return;
+        }
+
+        if (!confirm('グループ削除申請を送信しますか？')) {
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/requests/remove-group`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: Number(userId),
+              groupId: Number(groupId),
+              requestReason: requestReason,
+              requestId: currentDraftId
+            })
+          });
+          
+          const data = await res.json();
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          
+          alert('グループ削除申請を保存しました');
+          currentDraftId = null; // 送信後はドラフトIDをクリア
+          
+          // フォームをリセット
+          clearUserSelection();
+          clearGroupSelection();
+          document.getElementById('requestReason').value = '';
+        } catch (error) {
+          console.error('Error submitting request:', error);
+          alert('申請の保存に失敗しました');
+        }
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // イベントリスナー
+    document.getElementById('userSearchInput').addEventListener('input', () => {
+      filterUsers();
+      document.getElementById('userDropdown').style.display = 'block';
+    });
+
+    document.getElementById('userSearchInput').addEventListener('focus', () => {
+      if (filteredUsers.length > 0) {
+        document.getElementById('userDropdown').style.display = 'block';
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#userSearchInput') && !e.target.closest('#userDropdown')) {
+        document.getElementById('userDropdown').style.display = 'none';
+      }
+    });
+
+    document.getElementById('clearUserBtn').addEventListener('click', clearUserSelection);
+    const clearGroupBtn = document.getElementById('clearGroupBtn');
+    if (clearGroupBtn) {
+      clearGroupBtn.addEventListener('click', clearGroupSelection);
+    }
+    document.getElementById('saveDraftBtn').addEventListener('click', saveDraft);
+    document.getElementById('submitBtn').addEventListener('click', submitRequest);
+
+    // ドラフトを読み込む
+    async function loadDraft(draftId) {
+      try {
+        const res = await fetch(`${API_BASE}/requests/${draftId}`);
+        if (!res.ok) {
+          throw new Error('ドラフトの読み込みに失敗しました');
+        }
+        const request = await res.json();
+        
+        if (request.status !== 'draft') {
+          alert('この申請はドラフトではありません');
+          return;
+        }
+        
+        // ドラフト情報をフォームに設定
+        currentDraftId = request.id;
+        
+        // 申請タイプに応じてモードを設定
+        if (request.request_type === 'remove_group') {
+          document.querySelector('input[name="requestMode"][value="remove"]').checked = true;
+          updateModeDisplay();
+        } else {
+          document.querySelector('input[name="requestMode"][value="add"]').checked = true;
+          updateModeDisplay();
+        }
+        
+        // ユーザーを選択
+        if (request.requester_info && request.requester_info.id) {
+          await selectUser(request.requester_info.id, request.requester_info.user_name);
+        }
+        
+        if (requestMode === 'add') {
+          // 追加モード: グループ情報を設定
+          if (request.new_group_name) {
+            document.getElementById('groupName').value = request.new_group_name;
+          }
+          if (request.new_group_owner) {
+            document.getElementById('groupOwner').value = request.new_group_owner;
+          }
+          if (request.new_dbp_manager) {
+            document.getElementById('dbpManager').value = request.new_dbp_manager;
+          }
+        } else {
+          // 削除モード: グループを選択
+          if (request.group_id) {
+            await loadGroups(request.requester_info.id);
+            setTimeout(() => {
+              selectGroup(request.group_id, request.group_name, request.group_owner, request.dbp_manager);
+            }, 500);
+          }
+        }
+        
+        // 申請理由を設定
+        if (request.request_reason) {
+          document.getElementById('requestReason').value = request.request_reason;
+        }
+        
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        alert('ドラフトの読み込みに失敗しました');
+      }
+    }
+
+    // モード切り替えのイベントリスナー
+    document.querySelectorAll('input[name="requestMode"]').forEach(radio => {
+      radio.addEventListener('change', updateModeDisplay);
+    });
+    
+    // 初期表示を更新
+    updateModeDisplay();
+
+    // グループ検索入力欄のイベントリスナー
+    const groupSearchInput = document.getElementById('groupSearchInput');
+    if (groupSearchInput) {
+      groupSearchInput.addEventListener('input', () => {
+        filterGroups();
+        const groupDropdown = document.getElementById('groupDropdown');
+        if (groupDropdown) {
+          groupDropdown.style.display = 'block';
+        }
+      });
+
+      groupSearchInput.addEventListener('focus', () => {
+        const groupDropdown = document.getElementById('groupDropdown');
+        if (groupDropdown && filteredGroups.length > 0) {
+          groupDropdown.style.display = 'block';
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const groupSearchInput = document.getElementById('groupSearchInput');
+      const groupDropdown = document.getElementById('groupDropdown');
+      if (groupSearchInput && groupDropdown && !e.target.closest('#groupSearchInput') && !e.target.closest('#groupDropdown')) {
+        groupDropdown.style.display = 'none';
+      }
+    });
+
+    // 初期読み込み
+    if (checkAuth()) {
+      loadUsers();
+      
+      // URLパラメータからドラフトIDを取得
+      const urlParams = new URLSearchParams(window.location.search);
+      const draftId = urlParams.get('draftId');
+      if (draftId) {
+        // ユーザーとグループの読み込み完了を待ってからドラフトを読み込む
+        setTimeout(() => {
+          loadDraft(draftId);
+        }, 1000);
+      }
+    }
+  </script>
+</body>
+</html>
+

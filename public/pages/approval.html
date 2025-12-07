@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>承認画面</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .filter-section {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .filter-button {
+      padding: 0.5rem 1rem;
+      border: 2px solid var(--border-color);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 1rem;
+    }
+    .filter-button:hover {
+      background: var(--background);
+      border-color: var(--primary-color);
+    }
+    .filter-button.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    .request-item {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: var(--surface);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      transition: all 0.2s ease;
+    }
+    .request-item:hover {
+      border-color: var(--primary-color);
+    }
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .request-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .request-id {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: var(--primary-color);
+      color: white;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .request-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .request-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .approver-type-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: #e3f2fd;
+      color: #1976d2;
+      white-space: nowrap;
+    }
+    .request-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .request-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .request-datasets {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+    .request-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .btn-approve,
+    .btn-reject,
+    .btn-detail {
+      padding: 0.5rem 1.5rem;
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 0.2s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .btn-approve {
+      background: #28a745;
+    }
+    .btn-approve:hover {
+      background: #218838;
+    }
+    .btn-reject {
+      background: #dc3545;
+    }
+    .btn-reject:hover {
+      background: #c82333;
+    }
+    .btn-detail {
+      background: var(--primary-color);
+    }
+    .btn-detail:hover {
+      background: var(--primary-hover);
+    }
+    .comment-input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      resize: vertical;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    .approver-type-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>承認画面</h1>
+    <a href="/pages/top.html" class="back-link">← トップへ戻る</a>
+
+    <section class="filter-section">
+      <button class="filter-button active" data-status="pending" data-can-approve="true">あなたの承認待ち</button>
+      <button class="filter-button" data-status="pending" data-can-approve="false">上位承認待ち</button>
+      <button class="filter-button" data-status="approved">承認済み</button>
+      <button class="filter-button" data-status="rejected">却下済み</button>
+    </section>
+
+    <section id="pendingRequestsList">
+      <div class="empty-state">
+        <p>申請を読み込み中...</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let currentApproverEmail = '';
+    let currentStatusFilter = 'pending';
+    let currentCanApprove = 'true';
+
+    // ログインチェックと承認者チェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const isApprover = localStorage.getItem('isApprover') === 'true';
+      
+      if (!user) {
+        alert('ログインが必要です');
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      
+      if (!isApprover) {
+        alert('承認画面にアクセスする権限がありません');
+        window.location.href = '/pages/top.html';
+        return false;
+      }
+      
+      // ログインユーザーのメールアドレスを設定
+      if (user.email) {
+        currentApproverEmail = user.email;
+      }
+      
+      return true;
+    }
+
+    async function loadApprovals(status = 'pending', canApprove = null) {
+      if (!currentApproverEmail) {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user || !user.email) {
+          document.getElementById('pendingRequestsList').innerHTML = 
+            '<div class="empty-state"><p>ログインユーザー情報が取得できませんでした。</p></div>';
+          return;
+        }
+        currentApproverEmail = user.email;
+      }
+
+      currentStatusFilter = status;
+      currentCanApprove = canApprove;
+
+      try {
+        let url = `${API_BASE}/approvals/pending?approverEmail=${encodeURIComponent(currentApproverEmail)}&status=${status}`;
+        if (canApprove !== null) {
+          url += `&canApprove=${canApprove}`;
+        }
+        const res = await fetch(url);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: `HTTP error! status: ${res.status}` }));
+          throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+        }
+        const requests = await res.json();
+        console.log('Fetched requests:', requests); // デバッグ用
+        renderPendingRequests(requests, status);
+      } catch (error) {
+        console.error('Error loading approvals:', error);
+        document.getElementById('pendingRequestsList').innerHTML = 
+          `<div class="empty-state"><p>申請の読み込みに失敗しました。<br>エラー: ${escapeHtml(error.message)}</p></div>`;
+      }
+    }
+
+    function renderPendingRequests(requests, status = 'pending') {
+      const list = document.getElementById('pendingRequestsList');
+      
+      const statusMessages = {
+        'pending': currentCanApprove === 'true' ? 'あなたの承認待ちの申請はありません。' : '上位承認待ちの申請はありません。',
+        'approved': '承認済みの申請はありません。',
+        'rejected': '却下済みの申請はありません。'
+      };
+      
+      if (requests.length === 0) {
+        list.innerHTML = `<div class="empty-state"><p>${statusMessages[status] || '申請はありません。'}</p></div>`;
+        return;
+      }
+
+      list.innerHTML = requests.map(request => {
+        const requestDate = new Date(request.request_date).toLocaleString('ja-JP');
+        const approverTypeLabel = getApproverTypeLabel(request.approver_type);
+        
+        // 申請タイプのラベル
+        const requestTypeLabels = {
+          'dataset_access': 'データセットアクセス',
+          'remove_dataset_access': 'データセットアクセス削除',
+          'create_group': 'グループ作成',
+          'remove_group': 'グループ削除',
+          'add_members': 'メンバー追加',
+          'remove_members': 'メンバー削除'
+        };
+        const requestTypeLabel = requestTypeLabels[request.request_type] || request.request_type || 'データセットアクセス';
+        
+        return `
+          <div class="request-item" data-request-id="${request.id}" data-approver-type="${request.approver_type}">
+            <div class="request-header">
+              <div style="flex: 1;">
+                <div class="request-title">
+                  <span class="request-id">#${request.id}</span>
+                  <span class="request-type-badge">${requestTypeLabel}</span>
+                  <span class="request-date">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    ${requestDate}
+                  </span>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="approver-type-badge">${approverTypeLabel}</span>
+              </div>
+            </div>
+            <div class="request-meta">
+              <div class="request-meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <strong>申請者:</strong> ${escapeHtml(request.requester || '不明')}
+              </div>
+              ${request.group_name ? `
+              <div class="request-meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <strong>対象グループ:</strong> ${escapeHtml(request.group_name)}
+              </div>
+              ` : ''}
+            </div>
+            ${request.datasets ? `
+              <div class="request-datasets">
+                <strong>対象データセット:</strong> ${escapeHtml(request.datasets)}
+              </div>
+            ` : ''}
+            ${status === 'pending' ? `
+            <div class="request-actions">
+              <textarea 
+                class="comment-input" 
+                rows="2" 
+                placeholder="コメント（任意）"
+                id="comment-${request.id}"
+                ${request.can_approve === false ? 'disabled' : ''}
+              ></textarea>
+              <button 
+                class="btn-approve" 
+                onclick="approveRequest(${request.id}, '${request.approver_type}')"
+                ${request.can_approve === false ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+                title="${request.can_approve === false ? '前の承認者がまだ承認していません。' : ''}"
+              >
+                承認
+              </button>
+              <button 
+                class="btn-reject" 
+                onclick="rejectRequest(${request.id}, '${request.approver_type}')"
+                ${request.can_approve === false ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+                title="${request.can_approve === false ? '前の承認者がまだ承認していません。' : ''}"
+              >
+                却下
+              </button>
+              <button 
+                class="btn-detail" 
+                onclick="window.open('/pages/request_detail.html?id=${request.id}', '_blank')"
+              >
+                詳細
+              </button>
+            </div>
+            ${request.can_approve === false ? `
+              <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; color: #856404; border-radius: var(--radius); font-size: 0.875rem;">
+                ⚠️ 前の承認者がまだ承認していません。順番に承認してください。
+              </div>
+            ` : ''}
+            ` : `
+            <div class="request-actions">
+              ${request.approved_at ? `
+                <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--background); border-radius: var(--radius); font-size: 0.875rem;">
+                  <strong>${status === 'approved' ? '承認' : '却下'}日時:</strong> ${new Date(request.approved_at).toLocaleString('ja-JP')}
+                  ${request.comment ? `<br><strong>コメント:</strong> ${escapeHtml(request.comment)}` : ''}
+                </div>
+              ` : ''}
+              <button 
+                class="btn-detail" 
+                onclick="window.open('/pages/request_detail.html?id=${request.id}', '_blank')"
+              >
+                詳細
+              </button>
+            </div>
+            `}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getApproverTypeLabel(type) {
+      const labels = {
+        'dbp_manager': 'DBPマネージャー',
+        'data_manager': 'データマネージャー',
+        'group_owner': 'グループオーナー',
+        'app_owner': 'アプリケーションオーナー'
+      };
+      return labels[type] || type;
+    }
+
+    async function approveRequest(requestId, approverType) {
+      const comment = document.getElementById(`comment-${requestId}`).value.trim();
+      
+      if (!confirm('この申請を承認しますか？')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/approvals/${requestId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            approverEmail: currentApproverEmail,
+            approverType: approverType,
+            comment: comment || null
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || '承認処理に失敗しました');
+        }
+
+        const result = await res.json();
+        alert(result.message || '承認しました。');
+        loadApprovals(currentStatusFilter, currentCanApprove);
+      } catch (error) {
+        console.error('Error approving request:', error);
+        alert('承認処理に失敗しました: ' + error.message);
+      }
+    }
+
+    async function rejectRequest(requestId, approverType) {
+      const comment = document.getElementById(`comment-${requestId}`).value.trim();
+      
+      if (!comment) {
+        if (!confirm('コメントなしで却下しますか？')) {
+          return;
+        }
+      } else {
+        if (!confirm('この申請を却下しますか？')) {
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/approvals/${requestId}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            approverEmail: currentApproverEmail,
+            approverType: approverType,
+            comment: comment || null
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || '却下処理に失敗しました');
+        }
+
+        const result = await res.json();
+        alert(result.message || '却下しました。');
+        loadApprovals(currentStatusFilter, currentCanApprove);
+      } catch (error) {
+        console.error('Error rejecting request:', error);
+        alert('却下処理に失敗しました: ' + error.message);
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // フィルターボタンのイベントリスナー
+    document.querySelectorAll('.filter-button').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        const status = button.dataset.status;
+        const canApprove = button.dataset.canApprove || null;
+        loadApprovals(status, canApprove);
+      });
+    });
+
+    // 初期読み込み
+    if (checkAuth()) {
+      loadApprovals('pending', 'true');
+    }
+  </script>
+</body>
+</html>
+

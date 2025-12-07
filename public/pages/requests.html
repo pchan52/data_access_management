@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>申請一覧</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .request-item {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: var(--surface);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .request-item:hover {
+      background: var(--background);
+      border-color: var(--primary-color);
+      transform: translateX(4px);
+    }
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .request-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .request-id {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: var(--primary-color);
+      color: white;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .request-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .request-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-requested {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .status-approved {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-rejected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status-withdrawn {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+    .status-draft {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .request-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .request-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .request-datasets {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+    .request-datasets strong {
+      color: var(--text-primary);
+      margin-right: 0.5rem;
+    }
+    .search-section {
+      margin-bottom: 2rem;
+    }
+    .search-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 1rem;
+    }
+    .filter-section {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .filter-button {
+      padding: 0.5rem 1rem;
+      border: 2px solid var(--border-color);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 1rem;
+    }
+    .filter-button:hover {
+      background: var(--background);
+      border-color: var(--primary-color);
+    }
+    .filter-button.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    .result-count {
+      margin-bottom: 1rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>申請一覧</h1>
+    <a href="/pages/top.html" class="back-link">← トップへ戻る</a>
+
+    <section class="search-section">
+      <input 
+        type="text" 
+        id="searchInput" 
+        class="search-input"
+        placeholder="グループ名、申請者、データセット名で検索..."
+        autocomplete="off"
+      />
+      <div class="filter-section">
+        <button class="filter-button active" data-status="all">すべて</button>
+        <button class="filter-button" data-status="requested">申請中</button>
+        <button class="filter-button" data-status="approved">承認済み</button>
+        <button class="filter-button" data-status="rejected">却下</button>
+        <button class="filter-button" data-status="withdrawn">取り下げ済み</button>
+      </div>
+      <div class="result-count" id="resultCount"></div>
+    </section>
+
+    <section id="requestsList">
+      <div class="empty-state">
+        <p>申請を読み込み中...</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let allRequests = [];
+    let filteredRequests = [];
+
+    // ログインチェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!user) {
+        alert('ログインが必要です');
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    async function loadRequests() {
+      try {
+        // ログインユーザーのメールアドレスを取得
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user || !user.email) {
+          document.getElementById('requestsList').innerHTML = 
+            '<div class="empty-state"><p>ログインユーザー情報が取得できませんでした。</p></div>';
+          return;
+        }
+        
+        // 申請者のメールアドレスをクエリパラメータとして送信
+        const res = await fetch(`${API_BASE}/requests?requesterEmail=${encodeURIComponent(user.email)}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        allRequests = await res.json();
+        filteredRequests = allRequests;
+        renderRequests();
+        updateResultCount();
+      } catch (error) {
+        console.error('Error loading requests:', error);
+        document.getElementById('requestsList').innerHTML = 
+          '<div class="empty-state"><p>申請の読み込みに失敗しました。</p></div>';
+      }
+    }
+
+    function filterRequests() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const activeFilter = document.querySelector('.filter-button.active');
+      const statusFilter = activeFilter ? activeFilter.dataset.status : 'all';
+
+      filteredRequests = allRequests.filter(request => {
+        // ステータスフィルター
+        if (statusFilter !== 'all' && request.status !== statusFilter) {
+          return false;
+        }
+
+        // 検索フィルター
+        if (searchTerm) {
+          const groupName = (request.group_name || '').toLowerCase();
+          const requester = (request.requester || '').toLowerCase();
+          const datasets = (request.datasets || '').toLowerCase();
+          const datasetIds = (request.dataset_ids || '').toLowerCase();
+          
+          return groupName.includes(searchTerm) ||
+                 requester.includes(searchTerm) ||
+                 datasets.includes(searchTerm) ||
+                 datasetIds.includes(searchTerm);
+        }
+
+        return true;
+      });
+
+      renderRequests();
+      updateResultCount();
+    }
+
+    function renderRequests() {
+      const list = document.getElementById('requestsList');
+      
+      if (filteredRequests.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p>申請が見つかりませんでした。</p></div>';
+        return;
+      }
+
+      list.innerHTML = filteredRequests.map(request => {
+        let statusClass, statusText;
+        if (request.status === 'approved') {
+          statusClass = 'status-approved';
+          statusText = '承認済み';
+        } else if (request.status === 'rejected') {
+          statusClass = 'status-rejected';
+          statusText = '却下';
+        } else if (request.status === 'withdrawn') {
+          statusClass = 'status-withdrawn';
+          statusText = '取り下げ済み';
+        } else if (request.status === 'draft') {
+          statusClass = 'status-draft';
+          statusText = 'ドラフト';
+        } else {
+          statusClass = 'status-requested';
+          statusText = '申請中';
+        }
+        const requestDate = new Date(request.request_date).toLocaleString('ja-JP');
+        
+        // 申請タイプのラベル
+        const requestTypeLabels = {
+          'dataset_access': 'データセットアクセス',
+          'remove_dataset_access': 'データセットアクセス削除',
+          'create_group': 'グループ作成',
+          'remove_group': 'グループ削除',
+          'add_members': 'メンバー追加',
+          'remove_members': 'メンバー削除'
+        };
+        const requestTypeLabel = requestTypeLabels[request.request_type] || request.request_type || 'データセットアクセス';
+        
+        // 承認ステータスの集計
+        let approvalStatusHtml = '';
+        if (request.approvals && request.approvals.length > 0) {
+          const approverTypeLabels = {
+            'dbp_manager': 'DBPマネージャー',
+            'data_manager': 'データマネージャー',
+            'group_owner': 'グループオーナー',
+            'app_owner': 'アプリケーションオーナー'
+          };
+          
+          const approvedCount = request.approvals.filter(a => a.status === 'approved').length;
+          const rejectedCount = request.approvals.filter(a => a.status === 'rejected').length;
+          const pendingCount = request.approvals.filter(a => a.status === 'pending').length;
+          const totalCount = request.approvals.length;
+          
+          approvalStatusHtml = `
+            <div class="request-datasets" style="margin-top: 0.75rem;">
+              <strong>承認状況:</strong> 承認 ${approvedCount} / 却下 ${rejectedCount} / 承認待ち ${pendingCount} / 合計 ${totalCount}
+            </div>
+          `;
+        }
+        
+        // ドラフトの場合は編集ボタンを表示
+        const editButton = request.status === 'draft' 
+          ? `<button onclick="event.stopPropagation(); editDraft(${request.id})" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;">編集</button>`
+          : '';
+        
+        return `
+          <div class="request-item" onclick="${request.status === 'draft' ? '' : `viewRequest(${request.id})`}">
+            <div class="request-header">
+              <div style="flex: 1;">
+                <div class="request-title">
+                  <span class="request-id">#${request.id}</span>
+                  <span class="request-type-badge">${requestTypeLabel}</span>
+                  <span class="request-date">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    ${requestDate}
+                  </span>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="status-badge ${statusClass}">${statusText}</span>
+                ${editButton}
+              </div>
+            </div>
+            <div class="request-meta">
+              <div class="request-meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <strong>申請者:</strong> ${escapeHtml(request.requester || '不明')}
+              </div>
+              ${request.group_name ? `
+              <div class="request-meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <strong>対象グループ:</strong> ${escapeHtml(request.group_name)}
+              </div>
+              ` : ''}
+            </div>
+            ${request.datasets ? `
+              <div class="request-datasets">
+                <strong>対象データセット:</strong> ${escapeHtml(request.datasets)}
+              </div>
+            ` : ''}
+            ${approvalStatusHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateResultCount() {
+      const countElement = document.getElementById('resultCount');
+      if (allRequests.length === 0) {
+        countElement.textContent = '';
+        return;
+      }
+      
+      if (filteredRequests.length === allRequests.length) {
+        countElement.textContent = `全${allRequests.length}件`;
+      } else {
+        countElement.textContent = `${filteredRequests.length}件 / 全${allRequests.length}件`;
+      }
+    }
+
+    function viewRequest(id) {
+      window.location.href = `/pages/request_detail.html?id=${id}`;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // イベントリスナー
+    document.getElementById('searchInput').addEventListener('input', filterRequests);
+    
+    document.querySelectorAll('.filter-button').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        filterRequests();
+      });
+    });
+
+    function editDraft(requestId) {
+      // ドラフト編集ページに遷移（申請ページにドラフトIDを渡す）
+      window.location.href = `/pages/request.html?draftId=${requestId}`;
+    }
+
+    // 初期読み込み
+    if (checkAuth()) {
+      loadRequests();
+    }
+  </script>
+</body>
+</html>
+

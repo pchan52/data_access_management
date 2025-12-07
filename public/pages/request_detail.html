@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>申請詳細</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .detail-content {
+      background: var(--surface);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      margin-top: 2rem;
+    }
+    .detail-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+    }
+    .detail-content h3:first-child {
+      margin-top: 0;
+    }
+    .detail-content p {
+      margin-bottom: 1rem;
+      line-height: 1.8;
+    }
+    .detail-content strong {
+      color: var(--text-primary);
+      font-weight: 600;
+      display: inline-block;
+      min-width: 140px;
+    }
+    .detail-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+      background: var(--surface);
+    }
+    .detail-content th,
+    .detail-content td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .detail-content th {
+      background: var(--background);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .detail-content tr:hover {
+      background: var(--background);
+    }
+    .detail-content pre {
+      background: var(--background);
+      padding: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      max-height: 500px;
+      overflow: auto;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .status-requested {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .status-approved {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .status-rejected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status-withdrawn {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+    .status-draft {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .info-section {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .info-label {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .info-value {
+      color: var(--text-secondary);
+    }
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    .error {
+      text-align: center;
+      padding: 3rem;
+      color: #dc3545;
+    }
+    .jira-text-section {
+      margin-top: 1.5rem;
+    }
+    .copy-button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+    .copy-button:hover {
+      background: var(--primary-hover);
+    }
+    .copy-button:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>申請詳細</h1>
+    <a href="/pages/requests.html" class="back-link">← 申請一覧へ戻る</a>
+
+    <div id="loading" class="loading">
+      <p>申請情報を読み込み中...</p>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+      <p id="errorMessage"></p>
+    </div>
+
+    <div id="detailContent" class="detail-content" style="display: none;">
+      <div id="requestTypeDisplay" style="font-size: 1.75rem; font-weight: 700; color: var(--primary-color); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 3px solid var(--primary-color);"></div>
+      <h3>基本情報</h3>
+      <div class="info-section">
+        <div class="info-label">申請ID:</div>
+        <div class="info-value" id="requestId"></div>
+        
+        <div class="info-label">申請日時:</div>
+        <div class="info-value" id="requestDate"></div>
+        
+        <div class="info-label">ステータス:</div>
+        <div class="info-value" id="status"></div>
+        
+        <div class="info-label">申請者:</div>
+        <div class="info-value" id="requester"></div>
+        
+        <div class="info-label">対象グループ:</div>
+        <div class="info-value" id="groupName"></div>
+        
+        <div class="info-label">グループオーナー:</div>
+        <div class="info-value" id="groupOwner"></div>
+        
+        <div class="info-label">DBPマネージャー:</div>
+        <div class="info-value" id="dbpManager"></div>
+        
+        <div class="info-label">申請理由:</div>
+        <div class="info-value" id="requestReason"></div>
+      </div>
+
+      <div id="editSection" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--primary-color);">
+        <button id="editBtn" class="copy-button" onclick="toggleEditMode()">編集モード</button>
+        <button id="withdrawBtn" class="copy-button" onclick="withdrawRequest()" style="background: #dc3545; margin-left: 0.5rem;">申請を取り下げ</button>
+      </div>
+
+      <div id="editForm" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background: var(--background); border-radius: var(--radius); border: 1px solid var(--border-color);">
+        <h3 style="margin-top: 0;">申請内容の編集</h3>
+        
+        <div style="margin-bottom: 1rem;">
+          <label for="editRequestReason" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">申請理由:</label>
+          <textarea 
+            id="editRequestReason" 
+            rows="4" 
+            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; font-family: inherit; resize: vertical;"
+          ></textarea>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">対象データセット:</label>
+          <div id="editDatasetList" style="max-height: 300px; overflow-y: auto; padding: 1rem; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border-color);"></div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="copy-button" onclick="saveEdit()" style="background: #28a745;">保存</button>
+          <button class="copy-button" onclick="cancelEdit()" style="background: #6c757d;">キャンセル</button>
+        </div>
+      </div>
+
+      <h3>対象データセット</h3>
+      <div id="datasetsSection"></div>
+
+      <h3>該当アプリケーション</h3>
+      <div id="applicationsSection"></div>
+
+      <h3>承認ステータス</h3>
+      <div id="approvalsSection"></div>
+
+      <h3>JIRA用テキスト</h3>
+      <div class="jira-text-section">
+        <pre id="jiraText"></pre>
+        <button class="copy-button" onclick="copyJiraText()">テキストをコピー</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+
+    // ログインチェック
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!user) {
+        alert('ログインが必要です');
+        window.location.href = '/pages/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    async function loadRequestDetail() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestId = urlParams.get('id');
+
+      if (!requestId) {
+        showError('申請IDが指定されていません。');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/requests/${requestId}`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error('申請が見つかりませんでした。');
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const request = await res.json();
+        renderRequestDetail(request);
+      } catch (error) {
+        console.error('Error loading request detail:', error);
+        showError(error.message || '申請詳細の読み込みに失敗しました。');
+      }
+    }
+
+    function renderRequestDetail(request) {
+      // 基本情報
+      document.getElementById('requestId').textContent = request.id;
+      document.getElementById('requestDate').textContent = 
+        new Date(request.request_date).toLocaleString('ja-JP');
+      
+      let statusClass, statusText;
+      if (request.status === 'approved') {
+        statusClass = 'status-approved';
+        statusText = '承認済み';
+      } else if (request.status === 'rejected') {
+        statusClass = 'status-rejected';
+        statusText = '却下';
+      } else if (request.status === 'withdrawn') {
+        statusClass = 'status-withdrawn';
+        statusText = '取り下げ済み';
+      } else if (request.status === 'draft') {
+        statusClass = 'status-draft';
+        statusText = 'ドラフト';
+      } else {
+        statusClass = 'status-requested';
+        statusText = '申請中';
+      }
+      document.getElementById('status').innerHTML = 
+        `<span class="status-badge ${statusClass}">${statusText}</span>`;
+      
+      const requesterText = request.requester_info 
+        ? `${request.requester_info.user_name || ''} (${request.requester || ''})`
+        : request.requester || '不明';
+      document.getElementById('requester').textContent = requesterText;
+      
+      document.getElementById('groupName').textContent = request.group_name || '不明';
+      document.getElementById('groupOwner').textContent = request.group_owner || request.new_group_owner || '(未登録)';
+      document.getElementById('dbpManager').textContent = request.dbp_manager || request.new_dbp_manager || '(未登録)';
+      document.getElementById('requestReason').textContent = request.request_reason || '(未記入)';
+      
+      // 申請タイプの表示（大きく表示）
+      const requestTypeLabels = {
+        'dataset_access': 'データセットアクセス申請',
+        'remove_dataset_access': 'データアクセス削除申請',
+        'create_group': 'グループ作成申請',
+        'remove_group': 'グループ削除申請',
+        'add_members': 'メンバー追加申請',
+        'remove_members': 'メンバー削除申請'
+      };
+      const requestTypeLabel = requestTypeLabels[request.request_type] || request.request_type || 'データセットアクセス';
+      
+      // 申請タイプを大きく表示（ページ上部）
+      const requestTypeDisplay = document.getElementById('requestTypeDisplay');
+      if (requestTypeDisplay) {
+        requestTypeDisplay.textContent = requestTypeLabel;
+      } else {
+        // 申請タイプ表示エリアが存在しない場合は作成
+        const detailContent = document.querySelector('.detail-content');
+        if (detailContent) {
+          const requestTypeDiv = document.createElement('div');
+          requestTypeDiv.id = 'requestTypeDisplay';
+          requestTypeDiv.style.cssText = 'font-size: 1.75rem; font-weight: 700; color: var(--primary-color); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 3px solid var(--primary-color);';
+          requestTypeDiv.textContent = requestTypeLabel;
+          detailContent.insertBefore(requestTypeDiv, detailContent.firstChild);
+        }
+      }
+      
+      // 新規グループ作成申請の場合の表示
+      if (request.request_type === 'create_group') {
+        const datasetsSection = document.getElementById('datasetsSection');
+        datasetsSection.innerHTML = `
+          <p><strong>新規グループ名:</strong> ${escapeHtml(request.new_group_name || '')}</p>
+          <p><strong>グループオーナー:</strong> ${escapeHtml(request.new_group_owner || '')}</p>
+          <p><strong>DBPマネージャー:</strong> ${escapeHtml(request.new_dbp_manager || '')}</p>
+        `;
+      }
+      
+      // メンバー追加申請の場合の表示
+      if (request.request_type === 'add_members' && request.members && request.members.length > 0) {
+        const datasetsSection = document.getElementById('datasetsSection');
+        let html = '<table><thead><tr><th>ユーザー名</th><th>ユーザーID</th><th>メールアドレス</th><th>QSユーザー名</th></tr></thead><tbody>';
+        request.members.forEach(member => {
+          html += `<tr>
+            <td>${escapeHtml(member.user_name || '')}</td>
+            <td><code>${escapeHtml(member.user_id || '')}</code></td>
+            <td>${escapeHtml(member.email || '')}</td>
+            <td>${escapeHtml(member.qs_username || '')}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        datasetsSection.innerHTML = html;
+      }
+      
+      // 編集用にデータを保存
+      window.currentRequest = request;
+      
+      // 編集ボタンと取り下げボタンの表示制御
+      const editSection = document.getElementById('editSection');
+      const editBtn = document.getElementById('editBtn');
+      const withdrawBtn = document.getElementById('withdrawBtn');
+      
+      // ログインユーザー情報を取得
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const currentUserEmail = user ? user.email : null;
+      const isRequester = currentUserEmail && request.requester && 
+                         currentUserEmail.toLowerCase() === request.requester.toLowerCase();
+      
+      // 取り下げ済み、承認済み、却下済みの場合は編集・取り下げボタンを非表示
+      if (request.status === 'approved' || request.status === 'rejected' || request.status === 'withdrawn') {
+        editSection.style.display = 'none';
+      } else if (request.status === 'draft') {
+        // ドラフトの場合は編集ページへのリンクを表示
+        editSection.style.display = 'block';
+        editBtn.style.display = 'none';
+        withdrawBtn.style.display = 'none';
+        
+        // ドラフト編集ボタンを追加
+        if (!document.getElementById('editDraftBtn')) {
+          const editDraftBtn = document.createElement('button');
+          editDraftBtn.id = 'editDraftBtn';
+          editDraftBtn.className = 'copy-button';
+          editDraftBtn.textContent = 'ドラフトを編集';
+          editDraftBtn.onclick = () => {
+            window.location.href = `/pages/request.html?draftId=${request.id}`;
+          };
+          editSection.appendChild(editDraftBtn);
+        }
+      } else {
+        editSection.style.display = 'block';
+        // データセットアクセス申請の場合のみ編集ボタンを表示（申請者のみ）
+        if ((request.request_type === 'dataset_access' || !request.request_type) && isRequester) {
+          editBtn.style.display = 'inline-block';
+        } else {
+          editBtn.style.display = 'none';
+        }
+        // 取り下げボタンは申請者のみ表示（申請中の場合のみ）
+        if (isRequester) {
+          withdrawBtn.style.display = 'inline-block';
+        } else {
+          withdrawBtn.style.display = 'none';
+        }
+      }
+      
+      // 申請情報をグローバルに保存（取り下げ時に使用）
+      window.currentRequestId = request.id;
+      window.currentRequester = request.requester;
+
+      // データセット
+      const datasetsSection = document.getElementById('datasetsSection');
+      if (request.datasets && request.datasets.length > 0) {
+        let html = '<table><thead><tr><th>データセット名</th><th>データセットID</th><th>説明</th></tr></thead><tbody>';
+        request.datasets.forEach(ds => {
+          html += `<tr>
+            <td>${escapeHtml(ds.dataset_name || '')}</td>
+            <td><code>${escapeHtml(ds.dataset_id || '')}</code></td>
+            <td>${escapeHtml(ds.description || '')}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        datasetsSection.innerHTML = html;
+      } else {
+        datasetsSection.innerHTML = '<p class="text-muted">データセットが指定されていません。</p>';
+      }
+
+      // アプリケーション
+      const applicationsSection = document.getElementById('applicationsSection');
+      if (request.applications && request.applications.length > 0) {
+        let html = '<table><thead><tr><th>アプリケーション名</th><th>アプリケーションID</th><th>アプリケーションオーナー</th><th>ビジネスオーナー</th></tr></thead><tbody>';
+        request.applications.forEach(app => {
+          html += `<tr>
+            <td>${escapeHtml(app.application_name || '')}</td>
+            <td><code>${escapeHtml(app.application_id || '')}</code></td>
+            <td>${escapeHtml(app.app_owner || '')}</td>
+            <td>${escapeHtml(app.business_owner || '')}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        applicationsSection.innerHTML = html;
+      } else {
+        applicationsSection.innerHTML = '<p class="text-muted">該当アプリケーションはありません。</p>';
+      }
+
+      // 承認ステータス
+      const approvalsSection = document.getElementById('approvalsSection');
+      let html = '';
+      
+      // 承認者ステータス
+      if (request.approvals && request.approvals.length > 0) {
+        const approverTypeLabels = {
+          'dbp_manager': 'DBPマネージャー',
+          'data_manager': 'データマネージャー',
+          'group_owner': 'グループオーナー',
+          'app_owner': 'アプリケーションオーナー'
+        };
+        
+        html += '<div style="margin-bottom: 1.5rem;"><h4 style="margin-bottom: 0.75rem; font-size: 1rem;">承認者</h4>';
+        html += '<table><thead><tr><th>承認者タイプ</th><th>承認者</th><th>ステータス</th><th>承認日時</th><th>コメント</th></tr></thead><tbody>';
+        request.approvals.forEach(approval => {
+          const statusClass = approval.status === 'approved' ? 'status-approved' : 
+                             approval.status === 'rejected' ? 'status-rejected' : 'status-pending';
+          const statusText = approval.status === 'approved' ? '承認済み' : 
+                            approval.status === 'rejected' ? '却下' : '承認待ち';
+          const approvedAt = approval.approved_at 
+            ? new Date(approval.approved_at).toLocaleString('ja-JP')
+            : '-';
+          
+          html += `<tr>
+            <td>${approverTypeLabels[approval.approver_type] || approval.approver_type}</td>
+            <td>${escapeHtml(approval.approver_email || '')}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${approvedAt}</td>
+            <td>${escapeHtml(approval.comment || '')}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+      
+      // 通知済み（DBPマネージャーとビジネスオーナー）
+      if (request.notifications && request.notifications.length > 0) {
+        html += '<div><h4 style="margin-bottom: 0.75rem; font-size: 1rem;">通知済み</h4>';
+        html += '<table><thead><tr><th>タイプ</th><th>通知先</th><th>ステータス</th></tr></thead><tbody>';
+        request.notifications.forEach(notification => {
+          const notificationTypeText = {
+            'dbp_manager': 'DBPマネージャー',
+            'business_owner': 'ビジネスオーナー'
+          }[notification.type] || notification.type;
+          
+          const displayName = notification.name 
+            ? `${notification.name} (${notification.email})`
+            : notification.email;
+          
+          html += `<tr>
+            <td>${notificationTypeText}</td>
+            <td>${escapeHtml(displayName)}</td>
+            <td><span class="status-badge" style="background: #6c757d; color: white; padding: 0.25rem 0.75rem; border-radius: var(--radius); font-size: 0.875rem;">通知済み</span></td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+      
+      if (html === '') {
+        approvalsSection.innerHTML = '<p class="text-muted">承認情報がありません。</p>';
+      } else {
+        approvalsSection.innerHTML = html;
+      }
+
+      // JIRA用テキスト
+      const jiraTextElement = document.getElementById('jiraText');
+      if (request.jira_text) {
+        jiraTextElement.textContent = request.jira_text;
+      } else {
+        jiraTextElement.textContent = 'JIRA用テキストが生成されていません。';
+      }
+
+      // 表示切り替え
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('detailContent').style.display = 'block';
+    }
+
+    function showError(message) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('errorMessage').textContent = message;
+    }
+
+    function copyJiraText() {
+      const jiraText = document.getElementById('jiraText').textContent;
+      navigator.clipboard.writeText(jiraText).then(() => {
+        const button = document.querySelector('.copy-button');
+        const originalText = button.textContent;
+        button.textContent = 'コピーしました！';
+        button.style.background = '#28a745';
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy text:', err);
+        alert('コピーに失敗しました。');
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    let isEditMode = false;
+    let allAvailableDatasets = [];
+
+    async function toggleEditMode() {
+      if (!window.currentRequest) return;
+      
+      isEditMode = !isEditMode;
+      const editForm = document.getElementById('editForm');
+      const editBtn = document.getElementById('editBtn');
+      
+      if (isEditMode) {
+        editForm.style.display = 'block';
+        editBtn.textContent = '編集を終了';
+        editBtn.style.background = '#dc3545';
+        
+        // 申請理由を編集欄に設定
+        document.getElementById('editRequestReason').value = window.currentRequest.request_reason || '';
+        
+        // 利用可能なデータセットを取得
+        await loadAvailableDatasets();
+        renderEditDatasetList();
+      } else {
+        editForm.style.display = 'none';
+        editBtn.textContent = '編集';
+        editBtn.style.background = '';
+      }
+    }
+
+    async function loadAvailableDatasets() {
+      try {
+        const res = await fetch(`${API_BASE}/datasets`);
+        if (!res.ok) throw new Error('データセットの取得に失敗しました');
+        allAvailableDatasets = await res.json();
+      } catch (error) {
+        console.error('Error loading datasets:', error);
+        alert('データセットの読み込みに失敗しました');
+      }
+    }
+
+    function renderEditDatasetList() {
+      const container = document.getElementById('editDatasetList');
+      const currentDatasetIds = window.currentRequest.datasets.map(ds => ds.id);
+      
+      container.innerHTML = allAvailableDatasets.map(ds => {
+        const isChecked = currentDatasetIds.includes(ds.id);
+        return `
+          <label style="display: flex; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; cursor: pointer;">
+            <input 
+              type="checkbox" 
+              value="${ds.id}" 
+              ${isChecked ? 'checked' : ''}
+              style="margin-right: 0.5rem;"
+            >
+            <span>
+              <strong>${escapeHtml(ds.dataset_name || '')}</strong>
+              <code style="margin-left: 0.5rem; font-size: 0.875rem;">${escapeHtml(ds.dataset_id || '')}</code>
+            </span>
+          </label>
+        `;
+      }).join('');
+    }
+
+    async function saveEdit() {
+      if (!window.currentRequest) return;
+      
+      const requestId = window.currentRequest.id;
+      const requestReason = document.getElementById('editRequestReason').value.trim();
+      const checked = document.querySelectorAll('#editDatasetList input[type=checkbox]:checked');
+      const datasetIds = Array.from(checked).map(c => Number(c.value));
+      
+      if (datasetIds.length === 0) {
+        alert('データセットを1つ以上選択してください');
+        return;
+      }
+      
+      if (!confirm('申請内容を更新しますか？')) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_BASE}/requests/${requestId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestReason: requestReason || null,
+            datasetIds: datasetIds
+          })
+        });
+        
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || '更新に失敗しました');
+        }
+        
+        alert('申請内容を更新しました');
+        toggleEditMode();
+        loadRequestDetail();
+      } catch (error) {
+        console.error('Error saving edit:', error);
+        alert('更新に失敗しました: ' + error.message);
+      }
+    }
+
+    function cancelEdit() {
+      if (confirm('編集をキャンセルしますか？')) {
+        toggleEditMode();
+      }
+    }
+
+    async function withdrawRequest() {
+      if (!window.currentRequestId) {
+        alert('申請情報が読み込まれていません。');
+        return;
+      }
+      
+      if (!confirm('この申請を取り下げますか？取り下げた申請は元に戻せません。')) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_BASE}/requests/${window.currentRequestId}/withdraw`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || '取り下げ処理に失敗しました');
+        }
+        
+        const result = await res.json();
+        alert(result.message || '申請を取り下げました。');
+        
+        // ページを再読み込み
+        loadRequestDetail();
+      } catch (error) {
+        console.error('Error withdrawing request:', error);
+        alert('取り下げ処理に失敗しました: ' + error.message);
+      }
+    }
+
+    // 初期読み込み
+    if (checkAuth()) {
+      loadRequestDetail();
+    }
+  </script>
+</body>
+</html>
+
