@@ -1,4 +1,6 @@
-# データマネジメント管理ポータル
+# データマネジメントポータル
+
+データアクセスの申請・管理を行うためのポータルです。現在は**Quicksight**のデータセット・グループを対象としており、将来的にDatabricks等の他のデータプラットフォームにも対応予定です。
 
 ## ディレクトリ構造
 
@@ -37,7 +39,7 @@ psql -d access_governance -f sql/01_create_tables.sql
 ```
 
 このスクリプトで以下のテーブルが作成されます：
-- 基本テーブル（datasets, applications, qs_groups等）
+- 基本テーブル（datasets, applications, qs_groups等）※現在はQuicksight用
 - ユーザー管理テーブル（users, user_groups）
 - 申請管理テーブル（request_history, request_datasets, request_members）
 - 承認管理テーブル（request_approvals）
@@ -49,9 +51,9 @@ psql -d access_governance -f sql/02_sample_data.sql
 ```
 
 このスクリプトで以下のサンプルデータが投入されます：
-- データセット（13件）
+- Quicksightデータセット（13件）
 - アプリケーション（7件）
-- QSグループ（5件）
+- Quicksightグループ（5件）
 - ユーザー（24件）
 - 各種関連データ
 
@@ -164,24 +166,26 @@ http://localhost:3000
 #### エラー: "foreign key constraint"
 参照先のテーブルが存在しない場合、実行順序を確認してください。
 
-## 主な機能
+## 主な機能（Quicksight）
 
-- データセットアクセス申請（追加・削除）
-- グループ管理申請（作成・削除）
-- メンバー管理申請（追加・削除）
+- Quicksightデータセットアクセス申請（追加・削除）
+- Quicksightグループ管理申請（作成・削除）
+- Quicksightグループメンバー管理申請（追加・削除）
 - 承認ワークフロー
 - ドラフト保存機能
 - 申請一覧・詳細表示
 
-## 承認フロー
+**注意**: 現在の実装はQuicksight専用です。将来的にDatabricks等の他のデータプラットフォームにも対応予定です。
 
-### データセットアクセス申請
+## 承認フロー（Quicksight）
+
+### Quicksightデータセットアクセス申請
 1. グループオーナー
 2. データマネージャー
 3. アプリケーションオーナー（順序なし）
 DBPマネージャーとビジネスオーナーは通知のみ（承認フローには含まれません）
 
-### メンバー管理申請・グループ管理申請
+### Quicksightメンバー管理申請・グループ管理申請
 1. グループオーナー
 2. データマネージャー
 

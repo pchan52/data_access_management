@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>データマネジメント管理ポータル</title>
+  <title>データマネジメントポータル</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
   <div class="container">
-  <h1>データマネジメント管理ポータル</h1>
+  <h1>データマネジメントポータル</h1>
   
   <div id="userInfo" style="text-align: right; margin-bottom: 1rem; padding: 0.75rem; background: var(--surface); border-radius: var(--radius);">
     <span id="userName" style="margin-right: 1rem;"></span>
@@ -19,7 +19,8 @@
     <h2>このツールについて</h2>
     <p>
       データアクセスの申請・管理を行うためのポータルです。<br>
-      データセットアクセス申請、新規グループ作成申請、メンバー追加申請を一元管理し、承認プロセスを効率化します。
+      現在は<strong>Quicksight</strong>のデータセット・グループを対象としており、データセットアクセス申請、新規グループ作成申請、メンバー追加申請を一元管理し、承認プロセスを効率化します。<br>
+      <span style="color: var(--text-secondary); font-size: 0.9rem;">※将来的にDatabricks等の他のデータプラットフォームにも対応予定です。</span>
     </p>
     <p style="margin-top: 1rem;">
       <a href="/pages/usage.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">
@@ -29,7 +30,7 @@
   </section>
 
   <section id="userGroupsSection" style="display: none;">
-    <h2>所属グループ</h2>
+    <h2>所属グループ（Quicksight）</h2>
     <div id="userGroupsList">
       <p>読み込み中...</p>
     </div>
@@ -41,9 +42,9 @@
     <div class="page-section">
       <h3>申請ページ</h3>
       <ul class="page-list">
-        <li><a href="/pages/request.html">データセットアクセス申請<br><span class="text-muted">データセットへのアクセス申請</span></a></li>
-        <li><a href="/pages/member_request.html">メンバー管理申請<br><span class="text-muted">既存グループへのメンバー追加・削除申請</span></a></li>
-        <li><a href="/pages/group_request.html">グループ管理申請<br><span class="text-muted">新規グループの作成・削除申請</span></a></li>
+        <li><a href="/pages/request.html">データセットアクセス申請<br><span class="text-muted">Quicksightデータセットへのアクセス申請</span></a></li>
+        <li><a href="/pages/member_request.html">メンバー管理申請<br><span class="text-muted">Quicksightグループへのメンバー追加・削除申請</span></a></li>
+        <li><a href="/pages/group_request.html">グループ管理申請<br><span class="text-muted">Quicksightグループの作成・削除申請</span></a></li>
       </ul>
     </div>
 
@@ -59,8 +60,8 @@
     <div class="page-section">
       <h3>一覧ページ</h3>
       <ul class="page-list">
-        <li><a href="/pages/datasets.html">データセット一覧<br><span class="text-muted">データセットのメタデータ閲覧</span></a></li>
-        <li><a href="/pages/groups.html">QSグループ一覧<br><span class="text-muted">オーナー、メンバー、対応DBP、申請履歴</span></a></li>
+        <li><a href="/pages/datasets.html">データセット一覧<br><span class="text-muted">Quicksightデータセットのメタデータ閲覧</span></a></li>
+        <li><a href="/pages/groups.html">QSグループ一覧<br><span class="text-muted">Quicksightグループのオーナー、メンバー、対応DBP、申請履歴</span></a></li>
         <li><a href="/pages/users.html">メンバー一覧<br><span class="text-muted">ユーザー情報と所属グループ</span></a></li>
         <li><a href="/pages/applications.html">アプリケーション一覧<br><span class="text-muted">アプリケーション・ビジネスオーナー</span></a></li>
       </ul>
