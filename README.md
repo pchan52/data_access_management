@@ -20,20 +20,14 @@ qs-access-portal/
 ```
 
 ## セットアップ
+### 1. PostgreSQLデータベースのセットアップ
 
-### 1. 依存パッケージのインストール
-```bash
-npm install
-```
-
-### 2. PostgreSQLデータベースのセットアップ
-
-#### 2.1 データベース作成
+#### 1.1 データベース作成
 ```psql
 create database access_governance;
 ```
 
-#### 2.2 テーブル作成（必須）
+#### 1.2 テーブル作成（必須）
 ```bash
 psql -d access_governance -f sql/01_create_tables.sql
 ```
@@ -45,7 +39,7 @@ psql -d access_governance -f sql/01_create_tables.sql
 - 承認管理テーブル（request_approvals）
 - インデックス
 
-#### 2.3 サンプルデータ投入（オプション、開発・テスト環境のみ）
+#### 1.3 サンプルデータ投入（オプション、開発・テスト環境のみ）
 ```bash
 psql -d access_governance -f sql/02_sample_data.sql
 ```
@@ -57,9 +51,8 @@ psql -d access_governance -f sql/02_sample_data.sql
 - ユーザー（24件）
 - 各種関連データ
 
-**注意**: サンプルデータは開発・テスト環境でのみ使用してください。本番環境では実行しないでください。
 
-#### サンプルデータのログイン情報
+#### 1.4 サンプルデータのログイン情報
 
 サンプルデータには以下のユーザーが含まれています：
 
@@ -114,57 +107,16 @@ psql -d access_governance -f sql/02_sample_data.sql
 - DBPマネージャーとビジネスオーナーは承認フローには含まれませんが、関連する申請を閲覧できます
 - パスワード認証は実装されていないため、メールアドレスを入力するだけでログインできます
 
-### 3. サーバーの起動
+### 2. サーバーの起動
 ```bash
-npm start
-# または
 node server/server.js
 ```
 
-### 4. ブラウザでアクセス
+### 3. ブラウザでアクセス
 ```
 http://localhost:3000
 ```
 
-## SQLスクリプト実行ガイド
-
-### 実行順序
-
-以下の順序でSQLスクリプトを実行してください。
-
-1. **データベース作成**
-   ```bash
-   createdb access_governance
-   ```
-
-2. **テーブル作成（必須）**
-   ```bash
-   psql -d access_governance -f sql/01_create_tables.sql
-   ```
-
-3. **サンプルデータ投入（オプション）**
-   ```bash
-   psql -d access_governance -f sql/02_sample_data.sql
-   ```
-
-### ファイル説明
-
-- **01_create_tables.sql**: すべてのテーブルとインデックスを作成します。**最初に実行する必要があります。**
-- **02_sample_data.sql**: 開発・テスト用のサンプルデータを投入します。本番環境では実行しないでください。
-
-### 注意事項
-
-- 既存のデータベースに実行する場合は、バックアップを取ってから実行してください
-- `ON CONFLICT DO NOTHING`を使用しているため、重複実行してもエラーになりません
-- サンプルデータは開発・テスト環境でのみ使用してください
-
-### トラブルシューティング
-
-#### エラー: "relation already exists"
-テーブルが既に存在する場合、`DROP TABLE`で削除してから再実行するか、`CREATE TABLE IF NOT EXISTS`を使用してください。
-
-#### エラー: "foreign key constraint"
-参照先のテーブルが存在しない場合、実行順序を確認してください。
 
 ## 主な機能（Quicksight）
 
@@ -189,5 +141,25 @@ DBPマネージャーとビジネスオーナーは通知のみ（承認フロ�
 1. グループオーナー
 2. データマネージャー
 
+
+## 補足
+#### ファイル説明
+
+- **01_create_tables.sql**: すべてのテーブルとインデックスを作成します。**最初に実行する必要があります。**
+- **02_sample_data.sql**: 開発・テスト用のサンプルデータを投入します。本番環境では実行しないでください。
+
+#### 注意事項
+
+- 既存のデータベースに実行する場合は、バックアップを取ってから実行してください
+- `ON CONFLICT DO NOTHING`を使用しているため、重複実行してもエラーになりません
+- サンプルデータは開発・テスト環境でのみ使用してください
+
+#### トラブルシューティング
+
+##### エラー: "relation already exists"
+テーブルが既に存在する場合、`DROP TABLE`で削除してから再実行するか、`CREATE TABLE IF NOT EXISTS`を使用してください。
+
+##### エラー: "foreign key constraint"
+参照先のテーブルが存在しない場合、実行順序を確認してください。
 
 
